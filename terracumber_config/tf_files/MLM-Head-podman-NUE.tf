@@ -188,16 +188,18 @@ module "cucumber_testsuite" {
         memory = 2048
       }
     }
+    /*
     rhlike_minion = {
       image = "rocky8o"
       provider_settings = {
         mac = "aa:b2:93:01:00:0a"
-        // Since start of May we have problems with the instance not booting after a restart if there is only a CPU and only 1024Mb for RAM
-        // Also, openscap cannot run with less than 1.25 GB of RAM
+        # Since start of May we have problems with the instance not booting after a restart if there is only a CPU and only 1024Mb for RAM
+        # Also, openscap cannot run with less than 1.25 GB of RAM
         vcpu = 2
         memory = 2048
       }
     }
+    */
     deblike_minion = {
       image = "ubuntu2404o"
       provider_settings = {
