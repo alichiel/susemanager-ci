@@ -16,8 +16,8 @@ terracumber_config/
 │   ├── tfvars/
 │   │   ├── build-validation-tfvars/   # Per-environment tfvars for BV pipelines
 │   │   │   ├── mlm51_micro_build_validation_prg.tfvars
-│   │   │   ├── suma50_micro_build_validation_prg.tfvars
-│   │   │   ├── suma50_micro_build_validation_slc.tfvars
+│   │   │   ├── mlm52_micro_build_validation_prg.tfvars
+│   │   │   ├── mlm52_sles_build_validation_slc.tfvars
 │   │   │   └── ...
 │   │   ├── sle-update-tfvars/         # Per-environment tfvars for SLE update pipelines
 │   │   │   └── ...
@@ -55,7 +55,7 @@ Each environment has a dedicated `.tfvars` file under `tfvars/build-validation-t
 <product_version>_<image_type>_build_validation_<location>.tfvars
 ```
 
-For example: `suma50_micro_build_validation_prg.tfvars`
+For example: `mlm52_micro_build_validation_prg.tfvars`
 
 Each tfvars file defines two top-level variables:
 
@@ -100,7 +100,7 @@ ENVIRONMENT_CONFIGURATION = {
   }
 
   product_version = "x.x-released"
-  name_prefix     = "suma-bv-xx-micro-"
+  name_prefix     = "mlm-bv-xx-micro-"
   url_prefix      = "https://ci.suse.de/view/Manager/view/Manager-qe/job/manager-x.x-micro-qe-build-validation"
 }
 ```

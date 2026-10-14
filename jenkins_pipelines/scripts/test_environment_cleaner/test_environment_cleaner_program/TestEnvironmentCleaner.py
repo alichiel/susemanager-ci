@@ -28,8 +28,8 @@ MODES = [
 ]
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage SUSE Manager API actions.")
-    parser.add_argument("--url", required=True, help="The URL of the SUSE Manager XML-RPC API.")
+    parser = argparse.ArgumentParser(description="Manage Multi-Linux Manager API actions.")
+    parser.add_argument("--url", required=True, help="The URL of the Multi-Linux Manager XML-RPC API.")
     parser.add_argument("--mode", required=True, choices=MODES, help="The mode of operation.")
     parser.add_argument("--default-resources-to-delete", type=str, nargs='*',
                         choices=['proxy', 'monitoring-server', 'build', 'terminal'],
@@ -49,7 +49,7 @@ def main():
     if args.mode != "update_custom_repositories":
         product_version = resource_manager.get_product_version()
     else:
-        product_version = 5.0
+        product_version = 5.2
     # API part
     if args.mode in ["delete_users", "delete_activation_keys", "delete_config_projects",
                      "delete_software_channels", "delete_systems", "delete_repositories",
