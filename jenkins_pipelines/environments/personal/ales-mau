@@ -1,0 +1,137 @@
+#!/usr/bin/env groovy
+
+node('sumaform-cucumber') {
+    properties([
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '3')),
+        disableConcurrentBuilds(),
+        parameters([
+            activeChoice(name: 'cucumber_gitrepo', description: 'Testsuite GIT Repository', choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'https://github.com/SUSE/spacewalk.git',
+                    'https://github.com/uyuni-project/uyuni.git'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
+            string(name: 'cucumber_ref', defaultValue: 'Manager-5.1', description: 'Testsuite GIT reference (branch, tag...)'),
+            activeChoice(name: 'cucumber_ref', description: 'Testsuite GIT reference (branch, tag...)', choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'Manager-5.1',
+                    'Manager-5.2',
+                    'Uyuni'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]])
+            string(name: 'tf_file', defaultValue: 'susemanager-ci/terracumber_config/tf_files/personal/migration_and_upgrade.tf', description: 'Path to the tf file to be used'),
+            string(name: 'sumaform_gitrepo', defaultValue: 'https://github.com/uyuni-project/sumaform.git', description: 'Sumaform GIT Repository'),
+            string(name: 'sumaform_ref', defaultValue: 'master', description: 'Sumaform GIT reference (branch, tag...)'),
+            choice(name: 'sumaform_backend', choices: ['libvirt'], description: 'Sumaform backend to be used (see https://github.com/uyuni-project/sumaform#backend-choice)'),
+            choice(name: 'bin_path', choices: ['/usr/bin/tofu', '/usr/bin/terraform'], description: 'Binary path'),
+            choice(name: 'bin_plugins_path', choices: ['/usr/bin'], description: 'Plugins path'),
+            string(name: 'deploy_parallelism', defaultValue: '', description: 'Advanced: Define the number of parallel resource operations for the executable binary'),
+            string(name: 'terracumber_gitrepo', defaultValue: 'https://github.com/uyuni-project/terracumber.git', description: 'Terracumber GIT Repository'),
+            string(name: 'terracumber_ref', defaultValue: 'master', description: 'Terracumber GIT ref (branch, tag...)'),
+            activeChoice(name: 'mau_os_startpoint', description: """
+Choose the operationg system that you'd like to upgrade FROM. FROM version must be higher or the same as the TO version.
+Please make sure the supported upgrade path exists.
+If you wish to do no OS upgrade, the version FROM and TO must be the same.
+            """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'sles15sp5o',
+                    'sles15sp6o',
+                    'sles15sp7o',
+                    'slemicro55o',
+                    'slmicro60o',
+                    'slmicro61o',
+                    'slmicro62o',
+                    'opensuse160o',
+                    'sles160o',
+                    'sles161o',
+                    'tumbleweedo'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
+            activeChoice(name: 'mau_uyuni_startpoint', description: """
+Choose the uyuni or Multi-Linux Manager version to install and upgrade FROM. FROM version must be lower than TO version.
+If no link to containers provided, the default from distribution will be used (the most recent release).
+            """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'Multi-Linux Manager 5.0',
+                    'Multi-Linux Manager 5.1',
+                    'Multi-Linux Manager 5.2',
+                    'Uyuni'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
+            string(name: 'mau_container_registry_startpoint', defaultValue: '', description: """
+Add a container registry if you don't want to use released containers. The default value is empty and it means to use released containers.
+The registry is shared with server and proxy as well.
+Registry example: registry.suse.de/devel/galaxy/manager/5.1/containerfile/
+            """, trim: true),
+            string(name: 'mau_container_tag_startpoint', defaultValue: 'latest', description: """
+Add a tag of the containers that will be pulled. The default used is "latest".
+The tag is shared with server and proxy as well.
+            """, trim: true),
+            activeChoice(name: 'mau_os_endpoint', description: ''
+Choose the operationg system that you'd like to upgrade TO. FROM version must be higher or the same as the TO version.
+Please make sure the supported upgrade path exists.
+If you wish to do no OS upgrade, the version FROM and TO must be the same.
+            """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'sles15sp6o',
+                    'sles15sp7o',
+                    'slmicro60o',
+                    'slmicro61o',
+                    'slmicro62o',
+                    'opensuse161o',
+                    'sles160o',
+                    'sles161o',
+                    'tumbleweedo'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
+            activeChoice(name: 'mau_uyuni_endpoint', description: """
+Choose the uyuni or Multi-Linux Manager version to install and upgrade TO. TO version must be higher than FROM version.
+If no link to containers provided, the default from distribution will be used (the most recent release).
+            """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'Multi-Linux Manager 5.1',
+                    'Multi-Linux Manager 5.2',
+                    'Uyuni'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
+            string(name: 'mau_container_registry_endpoint', defaultValue: '', description: """
+Add a container registry if you don't want to use released containers. The default value is empty and it means to use released containers.
+The registry is shared with server and proxy as well.
+Registry example: registry.suse.de/devel/galaxy/manager/5.2/containerfile/
+            """, trim: true),
+            string(name: 'mau_container_tag_endpoint', defaultValue: 'latest', description: """
+Add a tag of the containers that will be pulled. The default used is "latest".
+The tag is shared with server and proxy as well.
+            """, trim: true),
+            booleanParam(name: 'terraform_init', defaultValue: true, description: 'Call terraform init (needed if modules are added or changes)'),
+            booleanParam(name: 'terraform_taint', defaultValue: true, description: 'Call terraform taint (so the resources, except volumes, are recreated)'),
+            booleanParam(name: 'use_previous_terraform_state', defaultValue: false, description: 'Use previous Terraform state'),
+            booleanParam(name: 'show_product_changes', defaultValue: false, description: 'Show the product changes since the last build'),
+            booleanParam(name: 'run_deployment', defaultValue: true, description: 'Run sumaform deployment'),
+            booleanParam(name: 'run_core', defaultValue: true, description: 'Run core testsuite'),
+            booleanParam(name: 'run_secondary', defaultValue: false, description: 'Run secondary testsuite'),
+            choice(name: 'rake_namespace', choices: ['cucumber', 'parallel'], description: 'Choose [parallel] (Clients and some features will run in parallel) or [cucumber] (all sequential)'),
+            activeChoice(name: 'functional_scopes', description: 'Choose the functional scopes that you want to test', choiceType: 'PT_CHECKBOX', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
+                return [
+                    'scope_migration_and_upgrade',
+                    'scope_containerized_proxy', 'scope_onboarding',
+                    'scope_changing_software_channels', 'scope_software_channels_and_repositories',
+                    'scope_api', '@scope_monitoring'
+                ]
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: "return ['error_loading_scopes']"]])
+        ])
+    ])
+
+    stage('Checkout pipeline') {
+        checkout scm
+    }
+    timeout(activity: false, time: 18, unit: 'HOURS') {
+        //Capybara configuration
+        def newParams = [:] + params
+        newParams.capybara_timeout = 10
+        newParams.default_timeout = 250
+        newParams.environment = 'ales'
+        def pipeline = load "jenkins_pipelines/environments/common/pipeline-personal.groovy"
+        pipeline.run(newParams)
+    }
+}
