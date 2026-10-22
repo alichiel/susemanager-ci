@@ -74,7 +74,7 @@ module "cucumber_testsuite" {
       }
     }
     server_containerized = {
-      image = "slmicro61o"
+      image = var.MAU["os_startpoint"]
       provider_settings = {
         mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["server"]
         vcpu = 4
@@ -89,7 +89,7 @@ module "cucumber_testsuite" {
 
     }
     proxy_containerized = {
-      image = "slmicro61o"
+      image = var.MAU["os_startpoint"]
       provider_settings = {
         mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["proxy"]
         vcpu = 2
