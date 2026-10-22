@@ -18,7 +18,7 @@ node('sumaform-cucumber') {
                     'Manager-5.2',
                     'Uyuni'
                 ]
-            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]])
+            """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'tf_file', defaultValue: 'susemanager-ci/terracumber_config/tf_files/personal/migration_and_upgrade.tf', description: 'Path to the tf file to be used'),
             string(name: 'sumaform_gitrepo', defaultValue: 'https://github.com/uyuni-project/sumaform.git', description: 'Sumaform GIT Repository'),
             string(name: 'sumaform_ref', defaultValue: 'master', description: 'Sumaform GIT reference (branch, tag...)'),
