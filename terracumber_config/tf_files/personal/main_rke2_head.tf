@@ -4,6 +4,10 @@ variable "CONTAINER_REGISTRY" {
   default = "registry.suse.de"
 }
 
+variable "SCC_MICRO_CREDENTIALS" {
+  type = string
+}
+
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -31,8 +35,9 @@ module "cucumber_testsuite" {
   cc_ptf_username = var.SCC_PTF_USER
   cc_ptf_password = var.SCC_PTF_PASSWORD
 
-  cc_username = var.SCC_USER
-  cc_password = var.SCC_PASSWORD
+  cc_username      = var.SCC_USER
+  cc_password      = var.SCC_PASSWORD
+  scc_slmicro_pass = var.SCC_MICRO_CREDENTIALS
 
   images = ["rocky8o", "opensuse160o", "ubuntu2404o", "sles15sp7o", "slmicro62o"]
 
@@ -59,14 +64,21 @@ module "cucumber_testsuite" {
   custom_download_endpoint = "ftp://minima-mirror-ci-bv.mgr.suse.de:445"
 
   // Kubernetes variables
-  kubernetes                     = true
-  use_devel_oci                  = true
-  deploy_coco_attestation        = true
-  deploy_saline                  = true
-  deploy_tftp                    = true
-  install_kubectl_helm           = false
-  kubeconfig_path                = null
-  install_uyuni_via_testsuite    = true
+  kubernetes                                = true
+  use_devel_oci                             = true
+  deploy_coco_attestation                   = true
+  deploy_saline                             = true
+  deploy_tftp                               = true
+  deploy_hub_api                            = true
+  install_kubectl_helm                      = false
+  kubeconfig_path                           = null
+  install_uyuni_via_testsuite               = true
+  kubernetes_create_static_var_spacewalk_pv = true
+  kubernetes_create_static_var_pgsql_pv     = true
+  local_path_provisioner_default_class      = true
+  rke2_version                              = "v1.35.4+rke2r1"
+  cert_manager_namespace                    = "cert-manager"
+  cert_manager_version                      = "v1.19.2"
 
   # when changing images, please also keep in mind to adjust the image matrix in the "Used image versions" section of the README.
   host_settings = {
@@ -81,17 +93,19 @@ module "cucumber_testsuite" {
       image = "slmicro62o"
       provider_settings = {
         mac    = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["server"]
-        vcpu   = 2
-        memory = 16384
+        vcpu   = 8
+        memory = 32768
       }
       main_disk_size       = 500
       login_timeout        = 28800
       large_deployment     = true
       runtime              = "rke2"
       container_tag        = "latest"
-      container_registry   = "registry.suse.de/suse/containers/suse-multilinuxmanager/5.2/containers/suse/multi-linux-manager/5.2/x86_64"
+      container_registry   = "registry.suse.de/devel/galaxy/manager/main/mlm-beta-products-sle15/containerfile/suse/multi-linux-manager/5.3/x86_64"
       helm_chart_name      = "server-helm"
-      helm_chart_url       = "oci://registry.suse.com/suse/multi-linux-manager/5.2"
+      helm_chart_url       = "oci://registry.suse.de/devel/galaxy/manager/main/mlm-beta-products-sle15/charts/suse/multi-linux-manager/5.3"
+      server_name          = "uyuni-server"
+      server_namespace     = "uyuni"
     }
     proxy_kubernetes = {
       provider_settings = {
@@ -102,9 +116,11 @@ module "cucumber_testsuite" {
       main_disk_size       = 200
       runtime              = "rke2"
       container_tag        = "latest"
-      container_registry   = "registry.suse.de/suse/containers/suse-multilinuxmanager/5.2/containers/suse/multi-linux-manager/5.2/x86_64"
+      container_registry   = "registry.suse.de/devel/galaxy/manager/main/mlm-beta-products-sle15/containerfile/suse/multi-linux-manager/5.3/x86_64"
       helm_chart_name      = "proxy-helm"
-      helm_chart_url       = "oci://registry.suse.com/suse/multi-linux-manager/5.2"
+      helm_chart_url       = "oci://registry.suse.de/devel/galaxy/manager/main/mlm-beta-products-sle15/charts/suse/multi-linux-manager/5.3"
+      proxy_name           = "uyuni-proxy"
+      proxy_namespace      = "uyuni"
     }
     suse_minion = {
       image = "sles15sp7o"

@@ -9,13 +9,11 @@ ENVIRONMENT_CONFIGURATION = {
     mac             = "aa:b2:93:01:02:81"
     name            = "server"
     image           = "slmicro61o"
-    string_registry = true
   }
   proxy_containerized = {
     mac             = "aa:b2:93:01:02:82"
     name            = "proxy"
     image           = "slmicro61o"
-    string_registry = true
   }
   monitoring_server = {
     mac   = "aa:b2:93:01:02:83"
@@ -97,19 +95,19 @@ ENVIRONMENT_CONFIGURATION = {
     name = "liberty9-minion"
   }
   rhel7_minion = {
-    mac  = "aa:b2:93:01:02:88"
+    mac  = "aa:b2:93:01:02:b0"
     name = "rhel7-minion"
   }
   rhel8_minion = {
-    mac  = "aa:b2:93:01:02:89"
+    mac  = "aa:b2:93:01:02:b1"
     name = "rhel8-minion"
   }
   rhel9_minion = {
-    mac  = "aa:b2:93:01:02:8a"
+    mac  = "aa:b2:93:01:02:b2"
     name = "rhel9-minion"
   }
   rhel10_minion = {
-    mac  = "aa:b2:93:01:02:8b"
+    mac  = "aa:b2:93:01:02:b3"
     name = "rhel10-minion"
   }
   ubuntu2204_minion = {
@@ -124,9 +122,9 @@ ENVIRONMENT_CONFIGURATION = {
     mac  = "aa:b2:93:01:02:91"
     name = "debian13-minion"
   }
-  debian13_sshminion = {
+  raspios13_minion = {
     mac  = "aa:b2:93:01:02:a7"
-    name = "debian13-sshminion"
+    name = "raspios13-minion"
   }
   ubuntu2404_minion = {
     mac  = "aa:b2:93:01:02:9d"
@@ -135,6 +133,10 @@ ENVIRONMENT_CONFIGURATION = {
   opensuse161arm_minion = {
     mac  = "aa:b2:93:01:02:ae"
     name = "opensuse161arm-minion"
+  }
+  opensuse161ppc_minion = {
+    mac  = "aa:b2:93:01:02:b4"
+    name = "opensuse161ppc-minion"
   }
   salt_migration_minion = {
     mac  = "aa:b2:93:01:02:af"
@@ -174,108 +176,112 @@ ENVIRONMENT_CONFIGURATION = {
 
   # SSH Minions
   sles12sp5_sshminion = {
-    mac  = "aa:b2:93:01:02:b0"
+    mac  = "aa:b2:93:01:02:c0"
     name = "sles12sp5-sshminion"
   }
   sles15sp4_sshminion = {
-    mac  = "aa:b2:93:01:02:b2"
+    mac  = "aa:b2:93:01:02:c2"
     name = "sles15sp4-sshminion"
   }
   sles15sp5_sshminion = {
-    mac  = "aa:b2:93:01:02:b3"
+    mac  = "aa:b2:93:01:02:c3"
     name = "sles15sp5-sshminion"
   }
   sles15sp6_sshminion = {
-    mac  = "aa:b2:93:01:02:b4"
+    mac  = "aa:b2:93:01:02:c4"
     name = "sles15sp6-sshminion"
   }
   sles15sp7_sshminion = {
-    mac  = "aa:b2:93:01:02:b5"
+    mac  = "aa:b2:93:01:02:c5"
     name = "sles15sp7-sshminion"
   }
   centos7_sshminion = {
-    mac  = "aa:b2:93:01:02:b7"
+    mac  = "aa:b2:93:01:02:c7"
     name = "centos7-sshminion"
   }
   rocky8_sshminion = {
-    mac  = "aa:b2:93:01:02:b8"
+    mac  = "aa:b2:93:01:02:c8"
     name = "rocky8-sshminion"
   }
   alma8_sshminion = {
-    mac  = "aa:b2:93:01:02:b9"
+    mac  = "aa:b2:93:01:02:c9"
     name = "alma8-sshminion"
   }
   rocky9_sshminion = {
-    mac  = "aa:b2:93:01:02:c1"
+    mac  = "aa:b2:93:01:02:d1"
     name = "rocky9-sshminion"
   }
   rocky10_sshminion = {
-    mac  = "aa:b2:93:01:02:be"
+    mac  = "aa:b2:93:01:02:ce"
     name = "rocky10-sshminion"
   }
   alma9_sshminion = {
-    mac  = "aa:b2:93:01:02:c2"
+    mac  = "aa:b2:93:01:02:d2"
     name = "alma9-sshminion"
   }
   alma10_sshminion = {
-    mac  = "aa:b2:93:01:02:ba"
+    mac  = "aa:b2:93:01:02:ca"
     name = "alma10-sshminion"
   }
   oracle9_sshminion = {
-    mac  = "aa:b2:93:01:02:c3"
+    mac  = "aa:b2:93:01:02:d3"
     name = "oracle9-sshminion"
   }
   oracle10_sshminion = {
-    mac  = "aa:b2:93:01:02:bf"
+    mac  = "aa:b2:93:01:02:cf"
     name = "oracle10-sshminion"
   }
   amazon2023_sshminion = {
-    mac  = "aa:b2:93:01:02:c4"
+    mac  = "aa:b2:93:01:02:d4"
     name = "amazon2023-sshminion"
   }
   liberty9_sshminion = {
-    mac  = "aa:b2:93:01:02:c5"
+    mac  = "aa:b2:93:01:02:d5"
     name = "liberty9-sshminion"
   }
   rhel7_sshminion = {
-    mac  = "aa:b2:93:01:02:8c"
+    mac  = "aa:b2:93:01:02:e0"
     name = "rhel7-sshminion"
   }
   rhel8_sshminion = {
-    mac  = "aa:b2:93:01:02:8d"
+    mac  = "aa:b2:93:01:02:e1"
     name = "rhel8-sshminion"
   }
   rhel9_sshminion = {
-    mac  = "aa:b2:93:01:02:8e"
+    mac  = "aa:b2:93:01:02:e2"
     name = "rhel9-sshminion"
   }
   rhel10_sshminion = {
-    mac  = "aa:b2:93:01:02:8f"
+    mac  = "aa:b2:93:01:02:e3"
     name = "rhel10-sshminion"
   }
   ubuntu2204_sshminion = {
-    mac  = "aa:b2:93:01:02:bb"
+    mac  = "aa:b2:93:01:02:cb"
     name = "ubuntu2204-sshminion"
   }
   ubuntu2604_sshminion = {
-    mac  = "aa:b2:93:01:02:bc"
+    mac  = "aa:b2:93:01:02:cc"
     name = "ubuntu2604-sshminion"
   }
   debian13_sshminion = {
-    mac  = "aa:b2:93:01:02:b1"
+    mac  = "aa:b2:93:01:02:c1"
     name = "debian13-sshminion"
   }
-  raspios13_minion = {
-    mac  = "aa:b2:93:01:02:c7"
-    name = "raspios13-minion"
+  raspios13_sshminion = {
+    mac  = "aa:b2:93:01:02:d7"
+    name = "raspios13-sshminion"
   }
   ubuntu2404_sshminion = {
-    mac  = "aa:b2:93:01:02:bd"
+    mac  = "aa:b2:93:01:02:cd"
     name = "ubuntu2404-sshminion"
   }
   opensuse161arm_sshminion = {
-    mac  = "aa:b2:93:01:02:ce"
+    mac  = "aa:b2:93:01:02:de"
     name = "opensuse161arm-sshminion"
+  }
+  opensuse161ppc_sshminion = {
+    mac  = "aa:b2:93:01:02:e4"
+    name = "opensuse161ppc-sshminion"
   }
   sles15sp5s390_sshminion = {
     mac    = "02:00:00:42:00:2f"
@@ -290,7 +296,7 @@ BASE_CONFIGURATIONS = {
   base_core = {
     pool               = "ssd"
     bridge             = "br1"
-    hypervisor         = "suma-11.mgr.suse.de"
+    hypervisor         = "suma-06.mgr.suse.de"
     additional_network = "192.168.100.0/24"
   }
   base_arm = {
@@ -299,6 +305,13 @@ BASE_CONFIGURATIONS = {
     bridge             = "br1"
     additional_network = null
     hypervisor         = "suma-arm.mgr.suse.de"
+  }
+  base_ppc = {
+    images             = [ "opensuse161ppco" ]
+    pool               = "ssd"
+    bridge             = "br1"
+    additional_network = null
+    hypervisor         = "suma-ppc.mgr.suse.de"
   }
 }
 MAIL_SUBJECT          = "Results Continuous Build Validation $status: $tests scenarios ($failures failed, $errors errors, $skipped skipped, $passed passed)"
