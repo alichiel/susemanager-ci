@@ -67,7 +67,7 @@ Registry example: registry.suse.de/devel/galaxy/manager/5.1/containerfile/
 Add a tag of the containers that will be pulled. The default used is "latest".
 The tag is shared with server and proxy as well.
             """, trim: true),
-            activeChoice(name: 'mau_os_endpoint', description: ''
+            activeChoice(name: 'mau_os_endpoint', description: """
 Choose the operationg system that you'd like to upgrade TO. FROM version must be higher or the same as the TO version.
 Please make sure the supported upgrade path exists.
 If you wish to do no OS upgrade, the version FROM and TO must be the same.
