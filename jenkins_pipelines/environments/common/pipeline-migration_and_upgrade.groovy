@@ -82,8 +82,8 @@ def run(params) {
                                 sh """echo 'HYPERVISOR_PRIVATE_SSH_KEY_PATH="/home/jenkins/.ssh/id_ed25519.worker"' >> ${resultdir}/sumaform/terraform.tfvars"""
                                 sh """echo 'CONTROLLER_PUBLIC_SSH_KEY_PATH="/home/jenkins/.ssh/id_ed25519.pub.controller"' >> ${resultdir}/sumaform/terraform.tfvars"""
                             }
-                            sh """sed -i s/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"""
-                            sh """sed -i s/_MAU_OS_ENDPOINT_/${params.mau_os_endpoint}/ ${resultdir}/sumaform/terraform.tfvars"""
+                            sh "sed -i s/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
+                            sh "sed -i s/_MAU_OS_ENDPOINT_/${params.mau_os_endpoint}/ ${resultdir}/sumaform/terraform.tfvars"
                             sh """
                             #!/bin/bash
                             set -e -o pipefail
@@ -94,29 +94,33 @@ def run(params) {
                             export TERRAFORM_PLUGINS=${params.bin_plugins_path}
                             export ENVIRONMENT=${params.environment}
                             export MAU_OS_STARTPOINT=${params.mau_os_startpoint}
+                            sh "sed -i s/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
                             export MAU_UYUNI_STARTPOINT=${params.mau_uyuni_startpoint}
+                            sh "sed -i s/_MAU_UYUNI_STARTPOINT_/${params.mau_uyuni_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
                             if (params.mau_container_registry_startpoint != '') {
                                 export MAU_CONTAINER_REGISTRY_STARTPOINT=${params.mau_container_registry_startpoint}
-                                sh "echo 'MAU_CONTAINER_REGISTRY_STARTPOINT=\"${params.mau_container_registry_startpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                                sh "sed -i s/_MAU_CONTAINER_REGISTRY_STARTPOINT_/${params.mau_container_registry_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
                                 if (params.mau_container_tag_startpoint != '') {
                                     export MAU_CONTAINER_TAG_STARTPOINT=${params.mau_container_tag_startpoint}
-                                    sh "echo 'MAU_CONTAINER_TAG_STARTPOINT=\"${params.mau_container_tag_startpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                                    sh "sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/${params.mau_container_tag_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
                                 } else {
                                     export MAU_CONTAINER_TAG_STARTPOINT=latest
-                                    sh "echo 'MAU_CONTAINER_TAG_STARTPOINT=\"latest\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                                    sh "sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/latest/ ${resultdir}/sumaform/terraform.tfvars"
                                 }
+                            } else {
+                                export MAU_CONTAINER_REGISTRY_STARTPOINT=registry.suse.de
+                                export MAU_CONTAINER_TAG_STARTPOINT=latest
+                                sh "sed -i s/_MAU_CONTAINER_REGISTRY_STARTPOINT_/registry.suse.de/ ${resultdir}/sumaform/terraform.tfvars"
+                                sh "sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/latest/ ${resultdir}/sumaform/terraform.tfvars"
                             }
                             export MAU_OS_ENDPOINT=${params.mau_os_endpoint}
                             export MAU_UYUNI_ENDPOINT=${params.mau_uyuni_endpoint}
                             if (params.mau_container_registry_endpoint != '') {
                                 export MAU_CONTAINER_REGISTRY_ENDPOINT=${params.mau_container_registry_endpoint}
-                                sh "echo 'MAU_CONTAINER_REGISTRY_ENDPOINT=\"${params.mau_container_registry_endpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
                                 if (params.mau_container_tag_endpoint != '') {
                                     export MAU_CONTAINER_TAG_ENDPOINT=${params.mau_container_tag_endpoint}
-                                    sh "echo 'MAU_CONTAINER_TAG_ENDPOINT=\"${params.mau_container_tag_endpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
                                 } else {
                                     export MAU_CONTAINER_TAG_ENDPOINT=latest
-                                    sh "echo 'MAU_CONTAINER_TAG_ENDPOINT=\"latest\"' >> ${resultdir}/sumaform/terraform.tfvars"
                                 }
                             }
             
@@ -126,7 +130,7 @@ def run(params) {
                                 --sumaform-backend ${params.sumaform_backend} \
                                 --runstep provision | \
                             sed -E 's/([^.]+)module\\.([^.]+)\\.module\\.([^.]+)(\\.module\\.[^.]+)?(\\[[0-9]+\\])?(\\.module\\.[^.]+)?(\\.[^.]+)?(.*)/\\1\\2.\\3\\8/'
-                        """
+                            """
                             deployed = true
                             // Collect and tag Flaky tests from the GitHub Board
                             def statusCode = sh script: "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake utils:collect_and_tag_flaky_tests'", returnStatus: true

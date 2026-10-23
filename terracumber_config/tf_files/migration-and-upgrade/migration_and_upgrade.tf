@@ -1,9 +1,3 @@
-variable "CONTAINER_REGISTRY" {
-  type = string
-  description = "Container repository for server and proxy"
-  default = "registry.suse.de"
-}
-
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -84,8 +78,8 @@ module "cucumber_testsuite" {
       login_timeout        = 28800
       large_deployment     = true
       runtime              = "podman"
-      container_registry   = var.CONTAINER_REGISTRY
-      container_tag        = "latest"
+      container_registry   = var.MAU["container_registry_startpoint"]
+      container_tag        = var.MAU["container_tag_startpoint"]
 
     }
     proxy_containerized = {
@@ -97,8 +91,8 @@ module "cucumber_testsuite" {
       }
       main_disk_size = 200
       runtime = "podman"
-      container_registry = var.CONTAINER_REGISTRY
-      container_tag = "latest"
+      container_registry = var.MAU["container_registry_startpoint"]
+      container_tag = var.MAU["container_tag_startpoint"]
     }
     suse_minion = {
       image = "sles15sp7o"
@@ -109,7 +103,6 @@ module "cucumber_testsuite" {
       }
     }
   }
-
   provider_settings = {
     pool               = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].pool
     network_name       = null

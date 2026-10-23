@@ -1,5 +1,5 @@
 ENVIRONMENT_CONFIGURATION = {
-  ales = {
+  migration-and-upgrade = {
     mac = {
       controller     = "aa:b2:93:01:01:a4"
       server         = "aa:b2:93:01:01:a5"
@@ -20,6 +20,8 @@ ENVIRONMENT_CONFIGURATION = {
   }
 }
 MAU = {
-  os_startpoint = "_MAU_OS_STARTPOINT_"
-  os_endpoint   = "_MAU_OS_ENDPOINT_"
+  os_startpoint                 = "_MAU_OS_STARTPOINT_"
+  uyuni_startpoint              = "_MAU_UYUNI_STARTPOINT_"
+  container_registry_startpoint = "_MAU_CONTAINER_REGISTRY_STARTPOINT_"
+  container_tag_startpoint      = "_MAU_CONTAINER_TAG_STARTPOINT_"
 }

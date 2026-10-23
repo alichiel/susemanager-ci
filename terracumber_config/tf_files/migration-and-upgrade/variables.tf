@@ -5,7 +5,12 @@ variable "ENVIRONMENT"{
 
 variable "ENVIRONMENT_CONFIGURATION" {
   type = map
-  description = "Collection of values containing: mac addresses, hypervisor and additional network"
+  description = "Collection of values containing: mac addresses, hypervisor, and additional network"
+}
+
+variable "MAU" {
+  type = map
+  description = "Collection of values containing: os_startpoint, uyuni_startpoint, container_registry_startpoint, and container_tag_startpoint"
 }
 
 variable "CUCUMBER_COMMAND" {
