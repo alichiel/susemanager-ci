@@ -1,5 +1,5 @@
 ENVIRONMENT_CONFIGURATION = {
-  ales = {
+  migration-and-upgrade = {
     mac = {
       controller     = "aa:b2:93:01:01:a4"
       server         = "aa:b2:93:01:01:a5"

@@ -128,8 +128,7 @@ The tag is shared with server and proxy as well.
         def newParams = [:] + params
         newParams.capybara_timeout = 10
         newParams.default_timeout = 250
-        //newParams.environment = 'migration-and-upgrade'
-        newParams.environment = 'ales'
+        newParams.environment = 'migration-and-upgrade'
         def pipeline = load "jenkins_pipelines/environments/common/pipeline-migration_and_upgrade.groovy"
         pipeline.run(newParams)
     }
