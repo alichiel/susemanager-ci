@@ -114,7 +114,7 @@ The tag is shared with server and proxy as well.
                     'scope_migration_and_upgrade',
                     'scope_containerized_proxy', 'scope_onboarding',
                     'scope_changing_software_channels', 'scope_software_channels_and_repositories',
-                    'scope_api', '@scope_monitoring'
+                    'scope_api', 'scope_monitoring'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: "return ['error_loading_scopes']"]])
         ])
