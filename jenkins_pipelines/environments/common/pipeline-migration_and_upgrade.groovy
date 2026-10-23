@@ -144,11 +144,6 @@ def run(params) {
                             sh """
                             #!/bin/bash
                             set -e -o pipefail
-                            echo "### DEBUG ###"
-                            env | grep -o '^TF_VAR_[A-Z_]*' || echo "no TF_VAR_* set"
-                            env | grep -o -i -E '^[A-Z_]*(SCC|USER|PASS)[A-Z_]*' | sort
-                            cat ${resultdir}/sumaform/terraform.tfvars
-            
                             ./terracumber-cli ${common_params} \
                                 --logfile ${resultdirbuild}/sumaform.log \
                                 ${TERRAFORM_INIT} ${TERRAFORM_TAINT} \
