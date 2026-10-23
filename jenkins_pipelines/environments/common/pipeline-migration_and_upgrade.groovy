@@ -94,24 +94,24 @@ def run(params) {
                             export TERRAFORM_PLUGINS=${params.bin_plugins_path}
                             export ENVIRONMENT=${params.environment}
                             export MAU_OS_STARTPOINT=${params.mau_os_startpoint}
-                            sh "sed -i s/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
+                            sed -i s/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/ ${resultdir}/sumaform/terraform.tfvars
                             export MAU_UYUNI_STARTPOINT=${params.mau_uyuni_startpoint}
-                            sh "sed -i s/_MAU_UYUNI_STARTPOINT_/${params.mau_uyuni_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
+                            sed -i s/_MAU_UYUNI_STARTPOINT_/${params.mau_uyuni_startpoint}/ ${resultdir}/sumaform/terraform.tfvars
                             if (params.mau_container_registry_startpoint != '') {
                                 export MAU_CONTAINER_REGISTRY_STARTPOINT=${params.mau_container_registry_startpoint}
-                                sh "sed -i s/_MAU_CONTAINER_REGISTRY_STARTPOINT_/${params.mau_container_registry_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
+                                sed -i s/_MAU_CONTAINER_REGISTRY_STARTPOINT_/${params.mau_container_registry_startpoint}/ ${resultdir}/sumaform/terraform.tfvars
                                 if (params.mau_container_tag_startpoint != '') {
                                     export MAU_CONTAINER_TAG_STARTPOINT=${params.mau_container_tag_startpoint}
-                                    sh "sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/${params.mau_container_tag_startpoint}/ ${resultdir}/sumaform/terraform.tfvars"
+                                    sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/${params.mau_container_tag_startpoint}/ ${resultdir}/sumaform/terraform.tfvars
                                 } else {
                                     export MAU_CONTAINER_TAG_STARTPOINT=latest
-                                    sh "sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/latest/ ${resultdir}/sumaform/terraform.tfvars"
+                                    sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/latest/ ${resultdir}/sumaform/terraform.tfvars
                                 }
                             } else {
                                 export MAU_CONTAINER_REGISTRY_STARTPOINT=registry.suse.de
                                 export MAU_CONTAINER_TAG_STARTPOINT=latest
-                                sh "sed -i s/_MAU_CONTAINER_REGISTRY_STARTPOINT_/registry.suse.de/ ${resultdir}/sumaform/terraform.tfvars"
-                                sh "sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/latest/ ${resultdir}/sumaform/terraform.tfvars"
+                                sed -i s/_MAU_CONTAINER_REGISTRY_STARTPOINT_/registry.suse.de/ ${resultdir}/sumaform/terraform.tfvars
+                                sed -i s/_MAU_CONTAINER_TAG_STARTPOINT_/latest/ ${resultdir}/sumaform/terraform.tfvars
                             }
                             export MAU_OS_ENDPOINT=${params.mau_os_endpoint}
                             export MAU_UYUNI_ENDPOINT=${params.mau_uyuni_endpoint}
@@ -123,6 +123,8 @@ def run(params) {
                                     export MAU_CONTAINER_TAG_ENDPOINT=latest
                                 }
                             }
+                            echo "### DEBUG ###"
+                            cat ${resultdir}/sumaform/terraform.tfvars
             
                             ./terracumber-cli ${common_params} \
                                 --logfile ${resultdirbuild}/sumaform.log \

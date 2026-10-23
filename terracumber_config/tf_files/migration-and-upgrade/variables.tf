@@ -1,4 +1,4 @@
-variable "ENVIRONMENT"{
+variable "ENVIRONMENT" {
   type = string
   description = "Migration and upgrade environment"
 }
