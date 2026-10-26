@@ -1,0 +1,295 @@
+def run(params) {
+    ansiColor('xterm') {
+        timestamps {
+            // Init path env variables
+            GString resultdir = "${env.WORKSPACE}/results"
+            GString resultdirbuild = "${resultdir}/${env.BUILD_NUMBER}"
+
+            // The junit plugin doesn't affect full paths
+            GString junit_resultdir = "results/${BUILD_NUMBER}/results_junit"
+            GString exports = "export BUILD_NUMBER=${env.BUILD_NUMBER}; export CAPYBARA_TIMEOUT=${params.capybara_timeout}; export DEFAULT_TIMEOUT=${params.default_timeout}; export CUCUMBER_PUBLISH_QUIET=true;"
+            String tfvariables_file = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/variables.tf"
+            String tfvars_infra_description = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/environment.tfvars"
+            GString common_params = "--outputdir ${resultdir} --tf ${params.tf_file} --tf_variables_description_file ${tfvariables_file}  --gitfolder ${resultdir}/sumaform --terraform-bin ${params.bin_path}"
+
+
+            def previous_commit = null
+            def product_commit = null
+            // Start pipeline
+            def deployed = false
+            def isNewJenkins = env.JENKINS_URL?.contains('jenkins.mgr.suse.de') || env.JENKINS_URL?.contains('jenkins.mgr.slc1.suse.org')
+            def credInit = isNewJenkins
+                    ? 'set +x; credFile=$(mktemp); echo "$SECRET_CONTENT" > "${credFile}"; chmod 600 "${credFile}"; . "${credFile}"; rm -f "${credFile}"; set -x'
+                    : 'set +x; . /home/jenkins/.credentials; set -x'
+            def withCreds = { Closure body ->
+                if (isNewJenkins) {
+                    withCredentials([string(credentialsId: 'sumaform-secrets', variable: 'SECRET_CONTENT')]) { body() }
+                } else {
+                    body()
+                }
+            }
+            // Inactivity timeout: kills a cucumber run that has stopped producing output entirely.
+            // Anything that is not a positive number of minutes falls back to the default.
+            def rawIdleTimeout = params.cucumber_idle_timeout?.toString()?.trim()
+            def cucumberIdleTimeoutMinutes = rawIdleTimeout?.isInteger() && rawIdleTimeout.toInteger() > 0 ? rawIdleTimeout.toInteger() : 60
+            def withIdleTimeout = { Closure body ->
+                timeout(activity: true, time: cucumberIdleTimeoutMinutes, unit: 'MINUTES') { body() }
+            }
+            try {
+                withCreds {
+                    stage('Clone terracumber, susemanager-ci and sumaform') {
+                        if (params.show_product_changes) {
+                            // Rename build using product commit hash
+                            currentBuild.description = "[${params.tf_file}]"
+                        }
+                        // Create a directory for  to place the directory with the build results (if it does not exist)
+                        sh "mkdir -p ${resultdir}"
+                        git url: params.terracumber_gitrepo, branch: params.terracumber_ref
+                        dir("susemanager-ci") {
+                            checkout scm
+                        }
+                        if (params.run_deployment) {
+                            // Use the dot operator (.) instead of source for shell compatibility
+                            sh """
+                            #!/bin/bash
+                            ${credInit}
+                            ./terracumber-cli ${common_params} --gitrepo ${params.sumaform_gitrepo} --gitref ${params.sumaform_ref} --runstep gitsync
+                        """
+                        }
+                        // Restore Terraform states from artifacts
+                        if (params.use_previous_terraform_state && currentBuild.previousBuild != null) {
+                            copyArtifacts projectName: currentBuild.projectName, selector: specific("${currentBuild.previousBuild.number}")
+                        }
+                    }
+                    stage('Deploy') {
+                        if (params.run_deployment) {
+                            // Provision the environment
+                            String TERRAFORM_INIT = ''
+                            if (params.terraform_init) {
+                                TERRAFORM_INIT = '--init'
+                            }
+                            String TERRAFORM_TAINT = ''
+                            if (params.terraform_taint) {
+                                TERRAFORM_TAINT = " --taint '.*(domain|combustion_disk|cloudinit_disk|ignition_disk|main_disk|data_disk|database_disk|standalone_provisioning).*'"
+                            }
+                            sh "rm -f ${resultdir}/sumaform/terraform.tfvars"
+                            sh "cat ${tfvars_infra_description} >> ${resultdir}/sumaform/terraform.tfvars"
+                            sh "echo 'ENVIRONMENT = \"${params.environment}\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                            if (isNewJenkins) {
+                                sh "echo 'HYPERVISOR_PRIVATE_SSH_KEY_PATH=\"/home/jenkins/.ssh/id_ed25519.worker\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                                sh "echo 'CONTROLLER_PUBLIC_SSH_KEY_PATH=\"/home/jenkins/.ssh/id_ed25519.pub.controller\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                            }
+                            sh """
+                            #!/bin/bash
+                            set -e -o pipefail
+                            sed -i s/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/ ${resultdir}/sumaform/terraform.tfvars
+                            sed -i s/_MAU_OS_ENDPOINT_/${params.mau_os_endpoint}/ ${resultdir}/sumaform/terraform.tfvars
+                            export TF_VAR_CUCUMBER_GITREPO='${params.cucumber_gitrepo}'
+                            export TF_VAR_CUCUMBER_BRANCH='${params.cucumber_ref}'
+                            export TERRAFORM='${params.bin_path}'
+                            export TERRAFORM_PLUGINS='${params.bin_plugins_path}'
+                            export ENVIRONMENT='${params.environment}'
+                            export MAU_OS_STARTPOINT='${params.mau_os_startpoint}'
+                            sed -i 's/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                            export MAU_UYUNI_STARTPOINT='${params.mau_uyuni_startpoint}'
+                            sed -i 's/_MAU_UYUNI_STARTPOINT_/${params.mau_uyuni_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                            """
+                            if (params.mau_container_registry_startpoint != '') {
+                                sh """
+                                #!/bin/bash
+                                set -e -o pipefail
+                                export MAU_CONTAINER_REGISTRY_STARTPOINT='${params.mau_container_registry_startpoint}'
+                                sed -i 's/_MAU_CONTAINER_REGISTRY_STARTPOINT_/${params.mau_container_registry_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                                """
+                                if (params.mau_container_tag_startpoint != '') {
+                                    sh """
+                                    #!/bin/bash
+                                    set -e -o pipefail
+                                    export MAU_CONTAINER_TAG_STARTPOINT='${params.mau_container_tag_startpoint}'
+                                    sed -i 's/_MAU_CONTAINER_TAG_STARTPOINT_/${params.mau_container_tag_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                                    """
+                                } else {
+                                    sh """
+                                    #!/bin/bash
+                                    set -e -o pipefail
+                                    export MAU_CONTAINER_TAG_STARTPOINT='latest'
+                                    sed -i 's/_MAU_CONTAINER_TAG_STARTPOINT_/latest/' ${resultdir}/sumaform/terraform.tfvars
+                                    """
+                                }
+                            } else {
+                                sh """
+                                #!/bin/bash
+                                set -e -o pipefail
+                                export MAU_CONTAINER_REGISTRY_STARTPOINT='registry.suse.de'
+                                export MAU_CONTAINER_TAG_STARTPOINT='latest'
+                                sed -i 's/_MAU_CONTAINER_REGISTRY_STARTPOINT_/registry.suse.de/' ${resultdir}/sumaform/terraform.tfvars
+                                sed -i 's/_MAU_CONTAINER_TAG_STARTPOINT_/latest/' ${resultdir}/sumaform/terraform.tfvars
+                                """
+                            }
+                            sh """
+                            #!/bin/bash
+                            set -e -o pipefail
+                            export MAU_OS_ENDPOINT='${params.mau_os_endpoint}'
+                            export MAU_UYUNI_ENDPOINT='${params.mau_uyuni_endpoint}'
+                            """
+                            if (params.mau_container_registry_endpoint != '') {
+                                sh "export MAU_CONTAINER_REGISTRY_ENDPOINT='${params.mau_container_registry_endpoint}'"
+                                if (params.mau_container_tag_endpoint != '') {
+                                    sh "export MAU_CONTAINER_TAG_ENDPOINT='${params.mau_container_tag_endpoint}'"
+                                } else {
+                                    sh "export MAU_CONTAINER_TAG_ENDPOINT='latest'"
+                                }
+                            }
+                            sh """
+                            #!/bin/bash
+                            set -e -o pipefail
+                            ${credInit}
+                            ./terracumber-cli ${common_params} \
+                                --logfile ${resultdirbuild}/sumaform.log \
+                                ${TERRAFORM_INIT} ${TERRAFORM_TAINT} \
+                                --sumaform-backend ${params.sumaform_backend} \
+                                --runstep provision | \
+                            sed -E 's/([^.]+)module\\.([^.]+)\\.module\\.([^.]+)(\\.module\\.[^.]+)?(\\[[0-9]+\\])?(\\.module\\.[^.]+)?(\\.[^.]+)?(.*)/\\1\\2.\\3\\8/'
+                            """
+                            deployed = true
+                            // Collect and tag Flaky tests from the GitHub Board
+                            def statusCode = sh script: "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake utils:collect_and_tag_flaky_tests'", returnStatus: true
+                        }
+                    }
+                }
+                stage('Product changes') {
+                    if (params.show_product_changes) {
+                        sh """
+                        # Comparison between:
+                        #  - the previous git revision of spacewalk (or uyuni) repository pushed in IBS (or OBS)
+                        #  - the git revision of the current spacewalk (or uyuni) repository pushed in IBS (or OBS)
+                        # Note: This is a trade-off, we should be comparing the git revisions of all the packages composing our product
+                        #       For that extra mile, we need a new tag in the repo metadata of each built, with the git revision of the related repository.
+                        """
+                        sh script: "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/; git --no-pager log --pretty=format:\"%h %<(16,trunc)%cn  %s  %d\" ${previous_commit}..${product_commit}'", returnStatus: true
+                    } else {
+                        println("Product changes disabled, checkbox 'show_product_changes' was not enabled'")
+                    }
+                }
+                stage('Sanity Check') {
+                    withIdleTimeout {
+                        sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake cucumber:sanity_check'"
+                    }
+                }
+                stage('Core - Setup') {
+                    if (params.run_core) {
+                        withIdleTimeout {
+                            sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake cucumber:core'"
+                            sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake cucumber:reposync'"
+                        }
+                    }
+                }
+                stage('Core - Proxy') {
+                    if (params.run_core) {
+                        withIdleTimeout {
+                            sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake cucumber:proxy'"
+                        }
+                    }
+                }
+                stage('Core - Initialize clients') {
+                    if (params.run_core) {
+                        withIdleTimeout {
+                            sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake parallel:init_clients'"
+                        }
+                    }
+                }
+                stage('Migration and Upgrade features') {
+                    if (params.run_migration_and_upgrade) {
+                        def tags_list = ""
+                        if (params.functional_scopes) {
+                            // Re-add the @ prefix stripped from the job parameters
+                            // (Jenkins' Safe HTML markup formatter escapes @ as &#64; in Active Choices labels).
+                            // startsWith guard keeps backward compatibility with jobs still passing @-prefixed scopes.
+                            def transformed_scopes = params.functional_scopes.split(',')
+                                    .collect { it.trim() }
+                                    .collect { it.startsWith('@') ? it : "@${it}" }
+                                    .join(' or ')
+                            // --cucumber-cmd below is single-quoted, and rake re-splits TAGS through a
+                            // shell, so the value carries its own quotes rather than nesting single ones.
+                            tags_list = "export TAGS=\"\\\"${transformed_scopes}\\\"\"; "
+                        }
+
+                        def statusCode1 = 1
+                        def statusCode2 = 1
+                        withIdleTimeout { statusCode1 = sh(script: "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd '${tags_list}cd /root/spacewalk/testsuite; ${exports} rake cucumber:migration_and_upgrade'", returnStatus: true) }
+                        withIdleTimeout { statusCode2 = sh(script: "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd '${tags_list}cd /root/spacewalk/testsuite; ${exports} rake ${params.rake_namespace}:mau_finishing'", returnStatus: true) }
+                        sh "exit \$(( ${statusCode1}|${statusCode2} ))"
+                    }
+                }
+            }
+            finally {
+                stage('Save TF state') {
+                    archiveArtifacts artifacts: "results/sumaform/terraform.tfstate, results/sumaform/.terraform/**/*"
+                }
+
+                stage('Get results') {
+                    def error = 0
+                    if (deployed) {
+                        try {
+                            sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake cucumber:finishing'"
+                        } catch (err) {
+                            println("ERROR: rake cucumber:finishing failed: ${err}")
+                            error = 1
+                        }
+                        try {
+                            sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/testsuite; ${exports} rake utils:generate_test_report'"
+                        } catch (err) {
+                            println("ERROR: rake utils:generate_test_repor failed: ${err}")
+                            error = 1
+                        }
+                        sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep getresults"
+                        // In the case of an AWS environment, we want to export the reports to a publicly accessible web server.
+                        if (params.sumaform_backend == "aws") {
+                            try {
+                                sh """
+                              ./terracumber-cli ${common_params} \
+                                --logfile ${resultdirbuild}/webserver.log \
+                                --runstep cucumber \
+                                --cucumber-cmd 'mkdir -p /mnt/www/${env.BUILD_NUMBER} && \
+                                                rsync -avz --no-owner --no-group  /root/spacewalk/testsuite/results/${env.BUILD_NUMBER}/ /mnt/www/${env.BUILD_NUMBER}/ && \
+                                                rsync -av --no-owner --no-group  /root/spacewalk/testsuite/spacewalk-debug.tar.bz2 /mnt/www/${env.BUILD_NUMBER}/ && \
+                                                rsync -av --no-owner --no-group  /root/spacewalk/testsuite/logs/ /mnt/www/${env.BUILD_NUMBER}/ && \
+                                                rsync -avz --no-owner --no-group  /root/spacewalk/testsuite/results/${env.BUILD_NUMBER}/results/cucumber_report/ /mnt/www/${env.BUILD_NUMBER}/'
+                            """
+                            } catch (err) {
+                                println("ERROR: Exporting reports to external AWS Web Server: ${err}")
+                                error = 1
+                            }
+                        }
+                        // Publish rich Cucumber report via the cucumber-reports plugin.
+                        // Reads all JSON files from the per-build results folder and produces
+                        // an interactive report with trend graphs, feature/scenario breakdown,
+                        // and filter by passed/failed/skipped — all inside Jenkins.
+                        cucumber(
+                                fileIncludePattern: '**/*.json',
+                                // Exclude non-Cucumber JSON files
+                                fileExcludePattern: '**/package*.json, **/total_result.json, **/cucumber_report/**',
+                                jsonReportDirectory: "${resultdirbuild}/results",
+                                reportTitle: 'TestSuite Report',
+                                buildStatus: 'UNSTABLE',
+                                trendsLimit: 30,
+                                sortingMethod: 'NATURAL',
+                                skippedFails: false,
+                                undefinedFails: false,
+                                mergeFeaturesById: false,
+                                mergeFeaturesWithRerunData: false,
+                                pendingFails: false,      // pending steps don't fail the build
+                        )
+                        junit allowEmptyResults: true, testResults: "${junit_resultdir}/*.xml"
+                    }
+                    // Send email
+                    // Clean up old results
+                    sh "./clean-old-results -r ${resultdir}"
+                    sh "exit ${error}"
+                }
+            }
+        }
+    }
+}
+
+return this
