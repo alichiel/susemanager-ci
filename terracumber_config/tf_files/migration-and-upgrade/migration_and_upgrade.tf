@@ -112,36 +112,6 @@ module "cucumber_testsuite" {
   }
 }
 
-module "migration-and-upgrade" {
-  environment_configuration       = var.ENVIRONMENT_CONFIGURATION
-  base_configurations             = var.BASE_CONFIGURATIONS
-  platform_location_configuration = var.PLATFORM_LOCATION_CONFIGURATION
-  location                        = var.LOCATION
-  product_version                 = var.PRODUCT_VERSION != null ? var.PRODUCT_VERSION : var.ENVIRONMENT_CONFIGURATION.product_version
-
-  scc_user         = var.SCC_USER
-  scc_password     = var.SCC_PASSWORD
-  scc_ptf_user     = var.SCC_PTF_USER
-  scc_ptf_password = var.SCC_PTF_PASSWORD
-  zvm_admin_token  = var.ZVM_ADMIN_TOKEN
-  s390_local_user  = var.S390_LOCAL_USER
-
-  git_user          = var.GIT_USER
-  git_password      = var.GIT_PASSWORD
-  cucumber_gitrepo  = var.CUCUMBER_GITREPO
-  cucumber_branch   = var.CUCUMBER_BRANCH
-
-  server_container_registry       = var.SERVER_CONTAINER_REGISTRY
-  server_container_image          = var.SERVER_CONTAINER_IMAGE
-  server_additional_repos         = var.SERVER_ADDITIONAL_REPOS
-  proxy_container_registry        = var.PROXY_CONTAINER_REGISTRY
-  proxy_additional_repos          = var.PROXY_ADDITIONAL_REPOS
-  base_os                         = var.BASE_OS
-  hypervisor_private_ssh_key_path = var.HYPERVISOR_PRIVATE_SSH_KEY_PATH
-  controller_private_ssh_key_path = var.CONTROLLER_PRIVATE_SSH_KEY_PATH
-  controller_public_ssh_key_path  = var.CONTROLLER_PUBLIC_SSH_KEY_PATH
-}
-
 output "configuration" {
   sensitive = true
   value     = module.cucumber_testsuite.configuration
