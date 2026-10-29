@@ -1,7 +1,7 @@
 // Mandatory variables for terracumber
 variable "URL_PREFIX" {
   type = string
-  default = "https://ci.suse.de/view/Manager/view/Manager-Head/job/manager-Head-infra-reference-PRG"
+  default = "https://jenkins.mgr.suse.de/job/manager-Head-infra-reference"
 }
 
 // Not really used as this is for --runall parameter, and we run cucumber step by step
@@ -90,6 +90,18 @@ variable "GIT_PASSWORD" {
   default = null // Not needed for master, as it is public
 }
 
+// Both paths are written to terraform.tfvars by the pipeline when running on
+// jenkins.mgr.suse.de, where the keys live in the agent home instead of sumaform
+variable "CONTROLLER_PUBLIC_SSH_KEY_PATH" {
+  type = string
+  default = "./salt/controller/id_ed25519.pub"
+}
+
+variable "HYPERVISOR_PRIVATE_SSH_KEY_PATH" {
+  type = string
+  default = "~/.ssh/id_ed25519"
+}
+
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -119,6 +131,8 @@ module "cucumber_testsuite" {
   cc_password = var.SCC_PASSWORD
   cc_ptf_username = var.SCC_PTF_USER
   cc_ptf_password = var.SCC_PTF_PASSWORD
+
+  ssh_key_path = var.CONTROLLER_PUBLIC_SSH_KEY_PATH
 
   images = ["rocky10o", "opensuse160o", "ubuntu2404o", "sles15sp7o", "slmicro62o"]
 
