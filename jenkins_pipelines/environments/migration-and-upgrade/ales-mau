@@ -34,7 +34,6 @@ Please make sure the supported upgrade path exists.
 If you wish to do no OS upgrade, the version FROM and TO must be the same.
             """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
                 return [
-                    'sles15sp5o',
                     'sles15sp6o',
                     'sles15sp7o',
                     'slemicro55o',
@@ -52,10 +51,10 @@ Choose the uyuni or Multi-Linux Manager version to install and upgrade FROM. FRO
 If no link to containers provided, the default from distribution will be used (the most recent release).
             """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
                 return [
-                    'Multi-Linux Manager 5.0',
                     'Multi-Linux Manager 5.1',
                     'Multi-Linux Manager 5.2',
-                    'Uyuni'
+                    'Uyuni Master',
+                    'Uyuni Released'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'mau_container_registry_startpoint', defaultValue: '', description: """
@@ -73,7 +72,6 @@ Please make sure the supported upgrade path exists.
 If you wish to do no OS upgrade, the version FROM and TO must be the same.
             """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
                 return [
-                    'sles15sp6o',
                     'sles15sp7o',
                     'slmicro60o',
                     'slmicro61o',
@@ -91,7 +89,7 @@ If no link to containers provided, the default from distribution will be used (t
                 return [
                     'Multi-Linux Manager 5.1',
                     'Multi-Linux Manager 5.2',
-                    'Uyuni Master'
+                    'Uyuni Master',
                     'Uyuni Released'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
