@@ -10,6 +10,7 @@ def run(params) {
             GString exports = "export BUILD_NUMBER=${env.BUILD_NUMBER}; export CAPYBARA_TIMEOUT=${params.capybara_timeout}; export DEFAULT_TIMEOUT=${params.default_timeout}; export CUCUMBER_PUBLISH_QUIET=true;"
             String tfvariables_file = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/variables.tf"
             String tfvars_infra_description = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/environment.tfvars"
+            String tf_mau_file = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/mau.tf"
             GString common_params = "--outputdir ${resultdir} --tf ${params.tf_file} --tf_variables_description_file ${tfvariables_file}  --gitfolder ${resultdir}/sumaform --terraform-bin ${params.bin_path}"
 
 
@@ -74,6 +75,7 @@ def run(params) {
                             }
                             sh "rm -f ${resultdir}/sumaform/terraform.tfvars"
                             sh "cat ${tfvars_infra_description} >> ${resultdir}/sumaform/terraform.tfvars"
+                            sh "cat ${tf_mau_file} >> ${resultdir}/sumaform/terraform.tfvars"
                             sh "echo 'ENVIRONMENT = \"${params.environment}\"' >> ${resultdir}/sumaform/terraform.tfvars"
                             if (isNewJenkins) {
                                 sh "echo 'HYPERVISOR_PRIVATE_SSH_KEY_PATH=\"/home/jenkins/.ssh/id_ed25519.worker\"' >> ${resultdir}/sumaform/terraform.tfvars"
@@ -82,6 +84,7 @@ def run(params) {
                             sh """
                             #!/bin/bash
                             set -e -o pipefail
+                            sed -i 's/_MAU_PRODUCT_VERSION_/${params.product_version}/' ${resultdir}/sumaform/terraform.tfvars
                             sed -i 's/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
                             sed -i 's/_MAU_UYUNI_STARTPOINT_/${params.mau_uyuni_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
                             export TF_VAR_CUCUMBER_GITREPO='${params.cucumber_gitrepo}'
