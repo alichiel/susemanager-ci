@@ -127,10 +127,10 @@ The tag is shared with server and proxy as well.
         mutableParams += params
         switch(params.cucumber_ref) {
             case 'Manager-5.1':
-                mutableParams.product_version = '5.1'
+                mutableParams.product_version = '5.1-released'
                 break
             case 'Manager-5.2':
-                mutableParams.product_version = '5.2'
+                mutableParams.product_version = '5.2-released'
                 break
             case 'Uyuni-master':
                 mutableParams.product_version = 'uyuni-master'

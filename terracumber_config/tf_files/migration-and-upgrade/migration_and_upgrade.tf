@@ -1,3 +1,10 @@
+variable "CONTAINER_REGISTRY" {
+  type = string
+  description = "Container repository for server and proxy"
+  default = "registry.suse.de"
+}
+
+
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -29,7 +36,7 @@ module "cucumber_testsuite" {
   cc_ptf_username = var.SCC_PTF_USER
   cc_ptf_password = var.SCC_PTF_PASSWORD
 
-  images = ["opensuse160o", "sles15sp6o", "sles15sp7o", "slmicro60o", "slmicro61o"]
+  images = ["tumbleweedo", "opensuse160o", "sles15sp6o", "sles15sp7o", "sles160o", "slemicro55o", "slmicro60o", "slmicro61o"]
 
   ssh_key_path = var.CONTROLLER_PUBLIC_SSH_KEY_PATH
   use_avahi    = false
@@ -94,6 +101,14 @@ module "cucumber_testsuite" {
       runtime = "podman"
       container_registry = var.MAU["container_registry_startpoint"]
       container_tag = var.MAU["container_tag_startpoint"]
+    }
+    build_host = {
+      image = "sles15sp7o"
+      provider_settings = {
+        mac    = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["build-host"]
+        vcpu = 2
+        memory = 4096
+      }
     }
     suse_minion = {
       image = "sles15sp7o"
