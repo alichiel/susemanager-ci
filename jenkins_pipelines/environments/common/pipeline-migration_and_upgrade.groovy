@@ -46,6 +46,7 @@ def run(params) {
                         }
                         // Create a directory for the build results (if it does not exist)
                         sh "mkdir -p ${resultdir}"
+                        sh "rm -f ${custom_repo_json_file}"
                         git url: params.terracumber_gitrepo, branch: params.terracumber_ref
                         dir("susemanager-ci") {
                             checkout scm
@@ -98,9 +99,7 @@ def run(params) {
                             """
                             // Generate custom_repositories.json file in the workspace from the value passed by parameter
                             if (params.custom_repositories?.trim()) {
-                                sh "rm -f ${custom_repo_json_file}"
                                 writeFile file: "${custom_repo_json_file}", text: params.custom_repositories, encoding: "UTF-8"
-                                def custom_repo_cmdline = "--custom-repositories ${custom_repo_json_file}"
                             }
                             if (params.mau_container_registry_startpoint != '') {
                                 sh "sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars"
@@ -146,7 +145,7 @@ def run(params) {
                                 --logfile ${resultdirbuild}/sumaform.log \
                                 ${TERRAFORM_INIT} ${TERRAFORM_TAINT} \
                                 --sumaform-backend ${params.sumaform_backend} \
-                                ${custom_repo_cmdline} \
+                                ${(${params.custom_repositories} != '' && fileExists(${custom_repo_json_file})) ? "--custom-repositories ${custom_repo_json_file}" : ''} \
                                 --runstep provision | \
                             sed -E 's/([^.]+)module\\.([^.]+)\\.module\\.([^.]+)(\\.module\\.[^.]+)?(\\[[0-9]+\\])?(\\.module\\.[^.]+)?(\\.[^.]+)?(.*)/\\1\\2.\\3\\8/'
                             """
