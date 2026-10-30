@@ -95,36 +95,22 @@ def run(params) {
                             #export MAU_OS_STARTPOINT='${params.mau_os_startpoint}'
                             #export MAU_UYUNI_STARTPOINT='${params.mau_uyuni_startpoint}'
                             """
+                            // Generate custom_repositories.json file in the workspace from the value passed by parameter
+                            if (params.custom_repositories?.trim()) {
+                                def custom_repo_json_file = "${env.WORKSPACE}/custom_repositories.json"
+                                writeFile file: "${custom_repo_json_file}", text: params.custom_repositories, encoding: "UTF-8"
+                            }
                             if (params.mau_container_registry_startpoint != '') {
-                                sh """
-                                #!/bin/bash
-                                set -e -o pipefail
-                                #export MAU_CONTAINER_REGISTRY_STARTPOINT='${params.mau_container_registry_startpoint}'
-                                sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars
-                                """
-                                sh "echo 'CONTAINER_REGISTRY=\"${params.mau_container_registry_startpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                                sh "sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars"
                                 if (params.mau_container_tag_startpoint != '') {
-                                    sh """
-                                    #!/bin/bash
-                                    set -e -o pipefail
-                                    #export MAU_CONTAINER_TAG_STARTPOINT='${params.mau_container_tag_startpoint}'
-                                    sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_|${params.mau_container_tag_startpoint}|' ${resultdir}/sumaform/terraform.tfvars
-                                    """
-                                    sh "echo 'CONTAINER_TAG=\"${params.mau_container_tag_startpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
+                                    sh "sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_|${params.mau_container_tag_startpoint}|' ${resultdir}/sumaform/terraform.tfvars"
                                 } else {
-                                    sh """
-                                    #!/bin/bash
-                                    set -e -o pipefail
-                                    #export MAU_CONTAINER_TAG_STARTPOINT='latest'
-                                    sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_|latest|' ${resultdir}/sumaform/terraform.tfvars
-                                    """
+                                    sh "sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_|latest|' ${resultdir}/sumaform/terraform.tfvars"
                                 }
                             } else {
                                 sh """
                                 #!/bin/bash
                                 set -e -o pipefail
-                                #export MAU_CONTAINER_REGISTRY_STARTPOINT=''
-                                #export MAU_CONTAINER_TAG_STARTPOINT=''
                                 sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_||' ${resultdir}/sumaform/terraform.tfvars
                                 sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_||' ${resultdir}/sumaform/terraform.tfvars
                                 """
@@ -132,8 +118,6 @@ def run(params) {
                             sh """
                             #!/bin/bash
                             set -e -o pipefail
-                            #export MAU_OS_ENDPOINT='${params.mau_os_endpoint}'
-                            #export MAU_UYUNI_ENDPOINT='${params.mau_uyuni_endpoint}'
                             sed -i 's|_MAU_OS_ENDPOINT_|${params.mau_os_endpoint}|' ${resultdir}/sumaform/terraform.tfvars
                             sed -i 's|_MAU_UYUNI_ENDPOINT_|${params.mau_uyuni_endpoint}|' ${resultdir}/sumaform/terraform.tfvars
                             """
@@ -160,6 +144,7 @@ def run(params) {
                                 --logfile ${resultdirbuild}/sumaform.log \
                                 ${TERRAFORM_INIT} ${TERRAFORM_TAINT} \
                                 --sumaform-backend ${params.sumaform_backend} \
+                                ${(${custom_repo_json_file} != '' && fileExists(${custom_repo_json_file})) ? "--custom-repositories ${custom_repo_json_file}" : ''} \
                                 --runstep provision | \
                             sed -E 's/([^.]+)module\\.([^.]+)\\.module\\.([^.]+)(\\.module\\.[^.]+)?(\\[[0-9]+\\])?(\\.module\\.[^.]+)?(\\.[^.]+)?(.*)/\\1\\2.\\3\\8/'
                             """

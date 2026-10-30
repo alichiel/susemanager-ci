@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
 node('sumaform-cucumber') {
-    def newParams = [:]
+    def mutableParams = [:]
     properties([
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '3')),
         disableConcurrentBuilds(),
@@ -90,7 +90,8 @@ If no link to containers provided, the default from distribution will be used (t
                 return [
                     'Multi-Linux Manager 5.1',
                     'Multi-Linux Manager 5.2',
-                    'Uyuni'
+                    'Uyuni Master'
+                    'Uyuni Released'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'mau_container_registry_endpoint', defaultValue: '', description: """
@@ -102,6 +103,7 @@ Registry example: registry.suse.de/devel/galaxy/manager/5.2/containerfile/
 Add a tag of the containers that will be pulled. The default used is "latest".
 The tag is shared with server and proxy as well.
             """, trim: true),
+            text(name: 'custom_repositories', defaultValue: '{}', description: 'Server and Proxy Tools repositories in the case of the maintenance update, in json format'),
             booleanParam(name: 'terraform_init', defaultValue: true, description: 'Call terraform init (needed if modules are added or changes)'),
             booleanParam(name: 'terraform_taint', defaultValue: true, description: 'Call terraform taint (so the resources, except volumes, are recreated)'),
             booleanParam(name: 'use_previous_terraform_state', defaultValue: false, description: 'Use previous Terraform state'),
@@ -124,29 +126,29 @@ The tag is shared with server and proxy as well.
     stage('Checkout pipeline') {
         checkout scm
         script {
-            newParams += params
+            mutableParams += params
             switch(params.cucumber_ref) {
                 case 'Manager-5.1':
-                    newParams.product_version = '5.1'
+                    mutableParams.product_version = '5.1'
                     break
                 case 'Manager-5.2':
-                    newParams.product_version = '5.2'
+                    mutableParams.product_version = '5.2'
                     break
-                case 'Uyuni':
-                    newParams.product_version = 'uyuni-master'
+                case 'Uyuni Master':
+                    mutableParams.product_version = 'uyuni-master'
                     break
                 default:
-                    newParams.product_version = 'uyuni-master'
+                    mutableParams.product_version = 'uyuni-released'
             }
         }
     }
     timeout(activity: false, time: 18, unit: 'HOURS') {
         //Capybara configuration
-        newParams.capybara_timeout = 10
-        newParams.default_timeout = 250
-        //newParams.environment = 'migration-and-upgrade'
-        newParams.environment = 'ales'
+        mutableParams.capybara_timeout = 10
+        mutableParams.default_timeout = 250
+        //mutableParams.environment = 'migration-and-upgrade'
+        mutableParams.environment = 'ales'
         def pipeline = load "jenkins_pipelines/environments/common/pipeline-migration_and_upgrade.groovy"
-        pipeline.run(newParams)
+        pipeline.run(mutableParams)
     }
 }
