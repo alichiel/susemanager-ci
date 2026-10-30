@@ -84,9 +84,9 @@ def run(params) {
                             sh """
                             #!/bin/bash
                             set -e -o pipefail
-                            sed -i 's/_MAU_PRODUCT_VERSION_/${params.product_version}/' ${resultdir}/sumaform/terraform.tfvars
-                            sed -i 's/_MAU_OS_STARTPOINT_/${params.mau_os_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
-                            sed -i 's/_MAU_UYUNI_STARTPOINT_/${params.mau_uyuni_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                            sed -i 's|_MAU_PRODUCT_VERSION_|${params.product_version}|' ${resultdir}/sumaform/terraform.tfvars
+                            sed -i 's|_MAU_OS_STARTPOINT_|${params.mau_os_startpoint}|' ${resultdir}/sumaform/terraform.tfvars
+                            sed -i 's|_MAU_UYUNI_STARTPOINT_|${params.mau_uyuni_startpoint}|' ${resultdir}/sumaform/terraform.tfvars
                             export TF_VAR_CUCUMBER_GITREPO='${params.cucumber_gitrepo}'
                             export TF_VAR_CUCUMBER_BRANCH='${params.cucumber_ref}'
                             export TERRAFORM='${params.bin_path}'
@@ -100,7 +100,7 @@ def run(params) {
                                 #!/bin/bash
                                 set -e -o pipefail
                                 #export MAU_CONTAINER_REGISTRY_STARTPOINT='${params.mau_container_registry_startpoint}'
-                                sed -i 's/_MAU_CONTAINER_REGISTRY_STARTPOINT_/${params.mau_container_registry_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                                sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars
                                 """
                                 sh "echo 'CONTAINER_REGISTRY=\"${params.mau_container_registry_startpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
                                 if (params.mau_container_tag_startpoint != '') {
@@ -108,7 +108,7 @@ def run(params) {
                                     #!/bin/bash
                                     set -e -o pipefail
                                     #export MAU_CONTAINER_TAG_STARTPOINT='${params.mau_container_tag_startpoint}'
-                                    sed -i 's/_MAU_CONTAINER_TAG_STARTPOINT_/${params.mau_container_tag_startpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                                    sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_|${params.mau_container_tag_startpoint}|' ${resultdir}/sumaform/terraform.tfvars
                                     """
                                     sh "echo 'CONTAINER_TAG=\"${params.mau_container_tag_startpoint}\"' >> ${resultdir}/sumaform/terraform.tfvars"
                                 } else {
@@ -116,7 +116,7 @@ def run(params) {
                                     #!/bin/bash
                                     set -e -o pipefail
                                     #export MAU_CONTAINER_TAG_STARTPOINT='latest'
-                                    sed -i 's/_MAU_CONTAINER_TAG_STARTPOINT_/latest/' ${resultdir}/sumaform/terraform.tfvars
+                                    sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_|latest|' ${resultdir}/sumaform/terraform.tfvars
                                     """
                                 }
                             } else {
@@ -125,8 +125,8 @@ def run(params) {
                                 set -e -o pipefail
                                 #export MAU_CONTAINER_REGISTRY_STARTPOINT=''
                                 #export MAU_CONTAINER_TAG_STARTPOINT=''
-                                sed -i 's/_MAU_CONTAINER_REGISTRY_STARTPOINT_//' ${resultdir}/sumaform/terraform.tfvars
-                                sed -i 's/_MAU_CONTAINER_TAG_STARTPOINT_//' ${resultdir}/sumaform/terraform.tfvars
+                                sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_||' ${resultdir}/sumaform/terraform.tfvars
+                                sed -i 's|_MAU_CONTAINER_TAG_STARTPOINT_||' ${resultdir}/sumaform/terraform.tfvars
                                 """
                             }
                             sh """
@@ -134,22 +134,22 @@ def run(params) {
                             set -e -o pipefail
                             #export MAU_OS_ENDPOINT='${params.mau_os_endpoint}'
                             #export MAU_UYUNI_ENDPOINT='${params.mau_uyuni_endpoint}'
-                            sed -i 's/_MAU_OS_ENDPOINT_/${params.mau_os_endpoint}/' ${resultdir}/sumaform/terraform.tfvars
-                            sed -i 's/_MAU_UYUNI_ENDPOINT_/${params.mau_uyuni_endpoint}/' ${resultdir}/sumaform/terraform.tfvars
+                            sed -i 's|_MAU_OS_ENDPOINT_|${params.mau_os_endpoint}|' ${resultdir}/sumaform/terraform.tfvars
+                            sed -i 's|_MAU_UYUNI_ENDPOINT_|${params.mau_uyuni_endpoint}|' ${resultdir}/sumaform/terraform.tfvars
                             """
                             if (params.mau_container_registry_endpoint != '') {
-                                sh "sed -i 's/_MAU_CONTAINER_REGISTRY_ENDPOINT_/${params.mau_container_registry_endpoint}/' ${resultdir}/sumaform/terraform.tfvars"
+                                sh "sed -i 's|_MAU_CONTAINER_REGISTRY_ENDPOINT_|${params.mau_container_registry_endpoint}|' ${resultdir}/sumaform/terraform.tfvars"
                                 if (params.mau_container_tag_endpoint != '') {
-                                    sh "sed -i 's/_MAU_CONTAINER_TAG_ENDPOINT_/${params.mau_container_tag_endpoint}/' ${resultdir}/sumaform/terraform.tfvars"
+                                    sh "sed -i 's|_MAU_CONTAINER_TAG_ENDPOINT_|${params.mau_container_tag_endpoint}|' ${resultdir}/sumaform/terraform.tfvars"
                                 } else {
-                                    sh "sed -i 's/_MAU_CONTAINER_TAG_ENDPOINT_/latest/' ${resultdir}/sumaform/terraform.tfvars"
+                                    sh "sed -i 's|_MAU_CONTAINER_TAG_ENDPOINT_|latest|' ${resultdir}/sumaform/terraform.tfvars"
                                 }
                             } else {
                                 sh """
                                 #!/bin/bash
                                 set -e -o pipefail
-                                sed -i 's/_MAU_CONTAINER_REGISTRY_ENDPOINT_//' ${resultdir}/sumaform/terraform.tfvars
-                                sed -i 's/_MAU_CONTAINER_TAG_ENDPOINT_//' ${resultdir}/sumaform/terraform.tfvars
+                                sed -i 's|_MAU_CONTAINER_REGISTRY_ENDPOINT_||' ${resultdir}/sumaform/terraform.tfvars
+                                sed -i 's|_MAU_CONTAINER_TAG_ENDPOINT_||' ${resultdir}/sumaform/terraform.tfvars
                                 """
                             }
                             sh """
