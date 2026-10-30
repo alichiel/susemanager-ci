@@ -10,7 +10,7 @@ def run(params) {
             GString exports = "export BUILD_NUMBER=${env.BUILD_NUMBER}; export CAPYBARA_TIMEOUT=${params.capybara_timeout}; export DEFAULT_TIMEOUT=${params.default_timeout}; export CUCUMBER_PUBLISH_QUIET=true;"
             String tfvariables_file = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/variables.tf"
             String tfvars_infra_description = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/environment.tfvars"
-            String tf_mau_file = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/mau.tf"
+            String tf_mau_file = "susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/mau.tfvars"
             GString common_params = "--outputdir ${resultdir} --tf ${params.tf_file} --tf_variables_description_file ${tfvariables_file}  --gitfolder ${resultdir}/sumaform --terraform-bin ${params.bin_path}"
 
 
