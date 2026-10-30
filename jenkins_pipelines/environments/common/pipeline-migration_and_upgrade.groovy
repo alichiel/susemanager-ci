@@ -55,7 +55,7 @@ def run(params) {
                             #!/bin/bash
                             ${credInit}
                             ./terracumber-cli ${common_params} --gitrepo ${params.sumaform_gitrepo} --gitref ${params.sumaform_ref} --runstep gitsync
-                        """
+                            """
                         }
                         // Restore Terraform states from artifacts
                         if (params.use_previous_terraform_state && currentBuild.previousBuild != null) {
@@ -99,6 +99,8 @@ def run(params) {
                             if (params.custom_repositories?.trim()) {
                                 def custom_repo_json_file = "${env.WORKSPACE}/custom_repositories.json"
                                 writeFile file: "${custom_repo_json_file}", text: params.custom_repositories, encoding: "UTF-8"
+                                if (fileExists(${custom_repo_json_file})) {
+                                    def custom_repo_cmdline = "--custom-repositories ${custom_repo_json_file}"
                             }
                             if (params.mau_container_registry_startpoint != '') {
                                 sh "sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars"
@@ -144,7 +146,7 @@ def run(params) {
                                 --logfile ${resultdirbuild}/sumaform.log \
                                 ${TERRAFORM_INIT} ${TERRAFORM_TAINT} \
                                 --sumaform-backend ${params.sumaform_backend} \
-                                ${(${custom_repo_json_file} != '' && fileExists(${custom_repo_json_file})) ? "--custom-repositories ${custom_repo_json_file}" : ''} \
+                                ${custom_repo_cmdline} \
                                 --runstep provision | \
                             sed -E 's/([^.]+)module\\.([^.]+)\\.module\\.([^.]+)(\\.module\\.[^.]+)?(\\[[0-9]+\\])?(\\.module\\.[^.]+)?(\\.[^.]+)?(.*)/\\1\\2.\\3\\8/'
                             """
