@@ -36,6 +36,7 @@ def run(params) {
             def withIdleTimeout = { Closure body ->
                 timeout(activity: true, time: cucumberIdleTimeoutMinutes, unit: 'MINUTES') { body() }
             }
+            def custom_repo_json_file = "${resultdir}/custom_repositories.json"
             try {
                 withCreds {
                     stage('Clone terracumber, susemanager-ci and sumaform') {
@@ -43,7 +44,7 @@ def run(params) {
                             // Rename build using product commit hash
                             currentBuild.description = "[${params.tf_file}]"
                         }
-                        // Create a directory for  to place the directory with the build results (if it does not exist)
+                        // Create a directory for the build results (if it does not exist)
                         sh "mkdir -p ${resultdir}"
                         git url: params.terracumber_gitrepo, branch: params.terracumber_ref
                         dir("susemanager-ci") {
@@ -97,10 +98,9 @@ def run(params) {
                             """
                             // Generate custom_repositories.json file in the workspace from the value passed by parameter
                             if (params.custom_repositories?.trim()) {
-                                def custom_repo_json_file = "${env.WORKSPACE}/custom_repositories.json"
+                                sh "rm -f ${custom_repo_json_file}"
                                 writeFile file: "${custom_repo_json_file}", text: params.custom_repositories, encoding: "UTF-8"
-                                if (fileExists(${custom_repo_json_file})) {
-                                    def custom_repo_cmdline = "--custom-repositories ${custom_repo_json_file}"
+                                def custom_repo_cmdline = "--custom-repositories ${custom_repo_json_file}"
                             }
                             if (params.mau_container_registry_startpoint != '') {
                                 sh "sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars"
