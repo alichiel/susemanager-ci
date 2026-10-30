@@ -36,7 +36,6 @@ def run(params) {
             def withIdleTimeout = { Closure body ->
                 timeout(activity: true, time: cucumberIdleTimeoutMinutes, unit: 'MINUTES') { body() }
             }
-            def custom_repo_json_file = "${resultdir}/custom_repositories.json"
             try {
                 withCreds {
                     stage('Clone terracumber, susemanager-ci and sumaform') {
@@ -46,7 +45,6 @@ def run(params) {
                         }
                         // Create a directory for the build results (if it does not exist)
                         sh "mkdir -p ${resultdir}"
-                        sh "rm -f ${custom_repo_json_file}"
                         git url: params.terracumber_gitrepo, branch: params.terracumber_ref
                         dir("susemanager-ci") {
                             checkout scm
@@ -98,8 +96,12 @@ def run(params) {
                             #export MAU_UYUNI_STARTPOINT='${params.mau_uyuni_startpoint}'
                             """
                             // Generate custom_repositories.json file in the workspace from the value passed by parameter
+                            String CUSTOM_REPO_CMDLINE = ''
                             if (params.custom_repositories?.trim()) {
+                                def custom_repo_json_file = "${resultdir}/custom_repositories.json"
+                                sh "rm -f ${custom_repo_json_file}"
                                 writeFile file: "${custom_repo_json_file}", text: params.custom_repositories, encoding: "UTF-8"
+                                CUSTOM_REPO_CMDLINE = "--custom-repositories ${custom_repo_json_file}"
                             }
                             if (params.mau_container_registry_startpoint != '') {
                                 sh "sed -i 's|_MAU_CONTAINER_REGISTRY_STARTPOINT_|${params.mau_container_registry_startpoint}|' ${resultdir}/sumaform/terraform.tfvars"
@@ -145,7 +147,7 @@ def run(params) {
                                 --logfile ${resultdirbuild}/sumaform.log \
                                 ${TERRAFORM_INIT} ${TERRAFORM_TAINT} \
                                 --sumaform-backend ${params.sumaform_backend} \
-                                ${(${params.custom_repositories} != '' && fileExists(${custom_repo_json_file})) ? "--custom-repositories ${custom_repo_json_file}" : ''} \
+                                ${CUSTOM_REPO_CMDLINE} \
                                 --runstep provision | \
                             sed -E 's/([^.]+)module\\.([^.]+)\\.module\\.([^.]+)(\\.module\\.[^.]+)?(\\[[0-9]+\\])?(\\.module\\.[^.]+)?(\\.[^.]+)?(.*)/\\1\\2.\\3\\8/'
                             """
