@@ -97,7 +97,7 @@ def run(params) {
                             """
                             // Generate custom_repositories.json file in the workspace from the value passed by parameter
                             String CUSTOM_REPO_CMDLINE = ''
-                            if (params.custom_repositories?.trim()) {
+                            if (params.custom_repositories?.trim() && params.custom_repositories.trim() != '{}') {
                                 def custom_repo_json_file = "${resultdir}/custom_repositories.json"
                                 sh "rm -f ${custom_repo_json_file}"
                                 writeFile file: "${custom_repo_json_file}", text: params.custom_repositories, encoding: "UTF-8"

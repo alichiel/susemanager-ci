@@ -61,13 +61,14 @@ module "cucumber_testsuite" {
 
   ## Add extra containers
   deploy_tftp              = true
-  deploy_saline            = true
-  deploy_coco_attestation  = true
-  deploy_hub_api           = true
+  deploy_saline            = false
+  deploy_coco_attestation  = false
+  deploy_hub_api           = false
 
   # when changing images, please also keep in mind to adjust the image matrix in the "Used image versions" section of the README.
   host_settings = {
     controller = {
+      image = "opensuse160o"
       provider_settings = {
         mac       = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["controller"]
         vcpu = 4
