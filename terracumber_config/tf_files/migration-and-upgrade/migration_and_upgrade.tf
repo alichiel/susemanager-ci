@@ -68,7 +68,6 @@ module "cucumber_testsuite" {
   # when changing images, please also keep in mind to adjust the image matrix in the "Used image versions" section of the README.
   host_settings = {
     controller = {
-      image = "opensuse160o"
       provider_settings = {
         mac       = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["controller"]
         vcpu = 4
@@ -102,15 +101,15 @@ module "cucumber_testsuite" {
       container_registry = var.MAU["container_registry_startpoint"]
       container_tag = var.MAU["container_tag_startpoint"]
     }
-    build_host = {
-      image = "sles15sp7o"
+    suse_minion = {
+      image = var.MAU["os_startpoint"]
       provider_settings = {
-        mac    = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["build-host"]
+        mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["suse-minion"]
         vcpu = 2
         memory = 4096
       }
     }
-    suse_minion = {
+    suse_sshminion = {
       image = "sles15sp7o"
       provider_settings = {
         mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["suse-minion"]
