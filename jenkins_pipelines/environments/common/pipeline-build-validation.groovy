@@ -35,6 +35,8 @@ def run(params) {
 
             // In-process throttle slots (per-job, scoped to this pipeline run)
             def muLockSlots = new java.util.concurrent.atomic.AtomicInteger(0)
+            // spacewalk-repo-sync holds a server-wide lock: non MU stages run it by hand and fail when it is taken
+            def nonMuLockSlots = new java.util.concurrent.atomic.AtomicInteger(0)
             def smokeTestSlots = new java.util.concurrent.atomic.AtomicInteger(0)
             def bootstrapRepoSlots = new java.util.concurrent.atomic.AtomicInteger(0)
             def retailProxyLockSlots = new java.util.concurrent.atomic.AtomicInteger(0)
@@ -157,7 +159,7 @@ def run(params) {
                                 if (!json_generator_version) {
                                     error("json_generator_version is not set for this environment, cannot generate custom_repositories.json from mi_ids")
                                 }
-                                node('manager-jenkins-node') {
+                                node('jenkins-agent') {
                                     checkout scm
                                     def res_python_script_ = sh(script: "python3 jenkins_pipelines/scripts/json_generator/maintenance_json_generator.py --version ${json_generator_version} --mi_ids ${params.mi_ids}", returnStatus: true)
                                     echo "Build Validation JSON script return code:\n ${res_python_script_}"
@@ -305,7 +307,7 @@ def run(params) {
                             if (!json_generator_version) {
                                 error("json_generator_version is not set for this environment, cannot generate custom_repositories.json from mi_ids")
                             }
-                            node('manager-jenkins-node') {
+                            node('jenkins-agent') {
                                 checkout scm
                                 def res_python_script_ = sh(script: "python3 jenkins_pipelines/scripts/json_generator/maintenance_json_generator.py --version ${json_generator_version} --mi_ids ${params.mi_ids}", returnStatus: true)
                                 echo "Build Validation JSON script return code:\n ${res_python_script_}"
@@ -455,7 +457,7 @@ def run(params) {
                     // Call the minion testing.
                     try {
                         stage('Clients stages') {
-                            clientTestingStages(params, muLockSlots, smokeTestSlots, bootstrapRepoSlots, isNewJenkins)
+                            clientTestingStages(params, muLockSlots, nonMuLockSlots, smokeTestSlots, bootstrapRepoSlots, isNewJenkins)
                         }
                     } catch (Exception ex) {
                         println('ERROR: one or more clients have failed')
@@ -694,7 +696,7 @@ def runCucumberRakeTarget(String rake_target, boolean return_status = false, dis
 
 // Develop a function that outlines the various stages of a minion.
 // These stages will be executed concurrently.
-def clientTestingStages(params, muLockSlots, smokeTestSlots, bootstrapRepoSlots, isNewJenkins) {
+def clientTestingStages(params, muLockSlots, nonMuLockSlots, smokeTestSlots, bootstrapRepoSlots, isNewJenkins) {
 
     // Implement a hash map to store the various stages of nodes.
     def tests = [:]
@@ -753,14 +755,16 @@ def clientTestingStages(params, muLockSlots, smokeTestSlots, bootstrapRepoSlots,
                             if (params.confirm_before_continue) {
                                 input 'Press any key to start adding common channels'
                             }
-                            withThrottle(muLockSlots, 5) {
-                                echo 'Add non MU Repositories'
-                                def res_non_MU_repositories = runCucumberRakeTarget("cucumber:${build_validation_non_MU_script}", true, temporaryList)
-                                echo "Non MU Repositories status code: ${res_non_MU_repositories}"
-                                echoHtmlReportPath(build_validation_non_MU_script)
-                                if (res_non_MU_repositories != 0) {
-                                    required_custom_channel_status[node] = 'FAIL'
-                                    error("Add common channels failed with status code: ${res_non_MU_repositories}")
+                            withThrottle(nonMuLockSlots, 1) {
+                                withThrottle(muLockSlots, 5) {
+                                    echo 'Add non MU Repositories'
+                                    def res_non_MU_repositories = runCucumberRakeTarget("cucumber:${build_validation_non_MU_script}", true, temporaryList)
+                                    echo "Non MU Repositories status code: ${res_non_MU_repositories}"
+                                    echoHtmlReportPath(build_validation_non_MU_script)
+                                    if (res_non_MU_repositories != 0) {
+                                        required_custom_channel_status[node] = 'FAIL'
+                                        error("Add common channels failed with status code: ${res_non_MU_repositories}")
+                                    }
                                 }
                             }
                         } else if (isNewJenkins) {
