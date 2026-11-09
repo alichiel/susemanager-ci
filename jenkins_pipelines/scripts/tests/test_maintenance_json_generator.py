@@ -22,6 +22,20 @@ TESTDATA_DIR = Path(__file__).resolve().parent / 'testdata'
 CLIENT_TOOLS_PR_PROJECT = '/MultiLinuxManagerTools:/PullRequest:/'
 MLM_PACKAGES_PR_PROJECT = ':/Packages:/PullRequest:/'
 
+CLIENT_TOOLS_PR_ID = '370'
+MLM_PACKAGES_PR_ID = '65'
+SLFO_1_0_PR_ID = '9672'
+SLFO_1_2_PR_ID = '9675'
+UNKNOWN_PR_ID = '4242'
+
+
+def _slfo_os_pr_project(slfo_version: str) -> str:
+    return f':/SLFO:/{slfo_version}:/PullRequest:/'
+
+
+def _slfo_os_pr_url(pr_id: str, slfo_version: str) -> str:
+    return f"{IBS_URL_PREFIX}/SLFO:/{slfo_version}:/PullRequest:/{pr_id}/standard/"
+
 
 def _only_client_tools_exist(url: str) -> bool:
     """Stand in for IBS: only the MultiLinuxManagerTools PullRequest project is published."""
@@ -490,6 +504,15 @@ class MaintenanceJsonGeneratorTestCase(unittest.TestCase):
                 'sles160_minion': {
                     'slfo_pr_12345_sles160_x86_64': 'http://download.suse.de/ibs/SUSE:/SLFO:/Products:/MultiLinuxManagerTools:/PullRequest:/12345:/SLES/product/repo/Multi-Linux-ManagerTools-SLE-16-x86_64/'
                 },
+                'sles161_minion': {
+                    'slfo_pr_12345_sles161_x86_64': 'http://download.suse.de/ibs/SUSE:/SLFO:/Products:/MultiLinuxManagerTools:/PullRequest:/12345:/SLES/product/repo/Multi-Linux-ManagerTools-SLE-16-x86_64/',
+                },
+                'slesforsap160_minion': {
+                    'slfo_pr_12345_slesforsap160_x86_64': 'http://download.suse.de/ibs/SUSE:/SLFO:/Products:/MultiLinuxManagerTools:/PullRequest:/12345:/SLES/product/repo/Multi-Linux-ManagerTools-SLE-16-x86_64/',
+                },
+                'slesforsap161_minion': {
+                    'slfo_pr_12345_slesforsap161_x86_64': 'http://download.suse.de/ibs/SUSE:/SLFO:/Products:/MultiLinuxManagerTools:/PullRequest:/12345:/SLES/product/repo/Multi-Linux-ManagerTools-SLE-16-x86_64/',
+                },
                 'slmicro62_minion': {
                     'slfo_pr_12345_slmicro62_x86_64': 'http://download.suse.de/ibs/SUSE:/SLFO:/Products:/MultiLinuxManagerTools:/PullRequest:/12345:/SLES/product/repo/Multi-Linux-ManagerTools-SLE-16-x86_64/'
                 },
@@ -525,11 +548,28 @@ class MaintenanceJsonGeneratorTestCase(unittest.TestCase):
         ):
             static, dynamic = get_static_and_client_tools('sles')
             self.assertEqual(static['sles160_minion']['sles16_client_tools'], x86_64_url)
+            for node in ('sles161_minion', 'slesforsap160_minion', 'slesforsap161_minion'):
+                self.assertEqual(static[node]['sles16_client_tools'], x86_64_url)
+                self.assertNotIn(node, dynamic)
             self.assertEqual(static['slmicro62_minion']['sles16_client_tools'], x86_64_url)
             self.assertEqual(static['opensuse161arm_minion']['sles16_client_tools'], aarch64_url)
             self.assertEqual(static['opensuse161ppc_minion']['sles16_client_tools'], ppc64le_url)
             self.assertNotIn('opensuse161arm_minion', dynamic)
             self.assertNotIn('opensuse161ppc_minion', dynamic)
+
+    def test_sap15_minions_use_their_sles_counterpart_without_ltss_plus_sap_repos(self):
+        for get_static_and_client_tools in (
+            get_v51_static_and_client_tools,
+            get_v52_static_and_client_tools,
+        ):
+            _static, dynamic = get_static_and_client_tools('sles')
+            for sp in ('sp5', 'sp6', 'sp7'):
+                sap = set(dynamic[f'slesforsap15{sp}_minion'])
+                sles = set(dynamic[f'sles15{sp}_minion'])
+                sap_only = {url for url in sap if 'SAP' in url or 'Product-HA' in url}
+                self.assertTrue(sap_only)
+                self.assertEqual(sap - sap_only, {url for url in sles if 'LTSS' not in url})
+                self.assertFalse([url for url in sap if 'LTSS' in url])
 
     def test_slmicro6_minions_keep_their_static_salt_repos(self):
         salt_urls = {
@@ -611,23 +651,121 @@ class MaintenanceJsonGeneratorTestCase(unittest.TestCase):
         self.assertIn('sles160_minion', repos)
         self.assertIn('slmicro62_minion', repos)
         # the PullRequest client tools supersede the :ToTest ones on every SLE-16 minion
-        for node in ('sles160_minion', 'slmicro62_minion', 'opensuse161arm_minion', 'opensuse161ppc_minion'):
+        for node in ('sles160_minion', 'sles161_minion', 'slesforsap160_minion', 'slesforsap161_minion',
+                     'slmicro62_minion', 'opensuse161arm_minion', 'opensuse161ppc_minion'):
             self.assertNotIn('sles16_client_tools', repos[node])
 
     @patch('json_generator.maintenance_json_generator.url_exists')
     def test_classify_slfo_pull_requests_sorts_ids_by_project(self, mock_url_exists):
-        # 370 only exists in MultiLinuxManagerTools, 65 only in Multi-Linux-Manager Packages
+        published = {
+            CLIENT_TOOLS_PR_PROJECT: CLIENT_TOOLS_PR_ID,
+            MLM_PACKAGES_PR_PROJECT: MLM_PACKAGES_PR_ID,
+            _slfo_os_pr_project('1.0'): SLFO_1_0_PR_ID,
+            _slfo_os_pr_project('1.2'): SLFO_1_2_PR_ID,
+        }
+
         def _exists(url: str) -> bool:
-            if CLIENT_TOOLS_PR_PROJECT in url:
-                return '/370:/' in url
-            return '/65:/' in url
+            return any(
+                project in url and (f'{project}{pr_id}:/' in url or f'{project}{pr_id}/' in url)
+                for project, pr_id in published.items()
+            )
 
         mock_url_exists.side_effect = _exists
 
+        expected = {family: [] for family in ('client_tools', 'mlm_packages', *(f'slfo_{ver}' for ver in SLFO_OS_MINIONS))}
+        expected.update({
+            'client_tools': [CLIENT_TOOLS_PR_ID],
+            'mlm_packages': [MLM_PACKAGES_PR_ID],
+            'slfo_1.0': [SLFO_1_0_PR_ID],
+            'slfo_1.2': [SLFO_1_2_PR_ID],
+        })
         self.assertDictEqual(
-            {'client_tools': ['370'], 'mlm_packages': ['65']},
-            classify_slfo_pull_requests(['370', '65'], '52-micro'),
+            expected,
+            classify_slfo_pull_requests(
+                [CLIENT_TOOLS_PR_ID, MLM_PACKAGES_PR_ID, SLFO_1_0_PR_ID, SLFO_1_2_PR_ID], '52-micro'
+            ),
         )
+
+    @patch('json_generator.maintenance_json_generator.url_exists')
+    def test_classify_slfo_pull_requests_rejects_id_in_two_slfo_versions(self, mock_url_exists):
+        mock_url_exists.side_effect = lambda url: f'/{SLFO_1_2_PR_ID}/' in url and (
+            _slfo_os_pr_project('1.1') in url or _slfo_os_pr_project('1.2') in url
+        )
+
+        with self.assertRaises(SystemExit) as ctx:
+            classify_slfo_pull_requests([SLFO_1_2_PR_ID], '52-sles')
+        self.assertIn('more than one project', str(ctx.exception))
+        self.assertIn('slfo_1.1', str(ctx.exception))
+        self.assertIn('slfo_1.2', str(ctx.exception))
+
+    @patch('json_generator.maintenance_json_generator.url_exists', return_value=False)
+    def test_classify_slfo_pull_requests_unknown_id_lists_slfo_probes(self, _mock_url_exists):
+        with self.assertRaises(SystemExit) as ctx:
+            classify_slfo_pull_requests([UNKNOWN_PR_ID], '52-sles')
+        for ver in SLFO_OS_MINIONS:
+            self.assertIn(_slfo_os_pr_url(UNKNOWN_PR_ID, ver), str(ctx.exception))
+
+    def test_slfo_pullrequest_os_url(self):
+        self.assertEqual(
+            slfo_pullrequest_os_url('9672', '1.0'),
+            'http://download.suse.de/ibs/SUSE:/SLFO:/1.0:/PullRequest:/9672/standard/',
+        )
+        for ver in SLFO_OS_MINIONS:
+            self.assertEqual(
+                slfo_pullrequest_os_url(SLFO_1_2_PR_ID, ver), _slfo_os_pr_url(SLFO_1_2_PR_ID, ver)
+            )
+
+    def test_slfo_pullrequest_repo_key(self):
+        self.assertEqual(
+            slfo_pullrequest_repo_key('372', 'sles160', 'x86_64'),
+            'slfo_pr_372_sles160_x86_64',
+        )
+        self.assertEqual(
+            slfo_pullrequest_repo_key('9676', 'opensuse161arm', 'aarch64'),
+            'slfo_pr_9676_opensuse161arm_aarch64',
+        )
+
+    def test_apply_slfo_pullrequest_os_replaces_static_salt(self):
+        client_tools = 'http://example.com/client-tools/'
+        custom_repos = {
+            'slmicro60_minion': {
+                'slmicro6_client_tools': client_tools,
+                'slmicro60_salt': 'http://example.com/staging/',
+            },
+            'sles160_minion': {'sles16_client_tools': client_tools},
+            'slmicro62_minion': {'sles16_client_tools': client_tools},
+            'opensuse161arm_minion': {'sles16_client_tools': client_tools},
+        }
+
+        for ver, pr_id in (('1.0', SLFO_1_0_PR_ID), ('1.2', SLFO_1_2_PR_ID)):
+            apply_slfo_pullrequest_os(custom_repos, pr_id, ver)
+            for node, arch in SLFO_OS_MINIONS[ver]:
+                key = slfo_pullrequest_repo_key(pr_id, node.removesuffix('_minion'), arch)
+                self.assertEqual(custom_repos[node][key], _slfo_os_pr_url(pr_id, ver))
+
+        self.assertNotIn('slmicro60_salt', custom_repos['slmicro60_minion'])
+        for node in ('slmicro60_minion', 'sles160_minion', 'slmicro62_minion'):
+            self.assertIn(
+                'slmicro6_client_tools' if node == 'slmicro60_minion' else 'sles16_client_tools',
+                custom_repos[node],
+            )
+
+        # minions of other SLFO releases remain untouched
+        self.assertEqual({'sles16_client_tools': client_tools}, custom_repos['opensuse161arm_minion'])
+
+    @patch('json_generator.maintenance_json_generator.url_exists',
+           side_effect=lambda url: _slfo_os_pr_project('1.2') in url)
+    def test_apply_slfo_pull_requests_dispatches_slfo_os(self, _mock_url_exists):
+        custom_repos = {
+            node: {'sles16_client_tools': 'http://example.com/client-tools/'}
+            for node, _arch in SLFO_OS_MINIONS['1.2']
+        }
+
+        apply_slfo_pull_requests(custom_repos, [SLFO_1_2_PR_ID], '52-sles')
+
+        for node, arch in SLFO_OS_MINIONS['1.2']:
+            key = slfo_pullrequest_repo_key(SLFO_1_2_PR_ID, node.removesuffix('_minion'), arch)
+            self.assertEqual(custom_repos[node][key], _slfo_os_pr_url(SLFO_1_2_PR_ID, '1.2'))
 
     @patch('json_generator.maintenance_json_generator.url_exists', return_value=False)
     def test_classify_slfo_pull_requests_rejects_unknown_id(self, _mock_url_exists):
