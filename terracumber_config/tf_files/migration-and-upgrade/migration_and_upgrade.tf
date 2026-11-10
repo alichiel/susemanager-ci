@@ -100,7 +100,7 @@ module "cucumber_testsuite" {
       container_tag = var.MAU["container_tag_startpoint"]
     }
     suse_minion = {
-      image = var.MAU["os_startpoint"]
+      image = "sles15sp7o"
       provider_settings = {
         mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["suse-minion"]
         vcpu = 2
