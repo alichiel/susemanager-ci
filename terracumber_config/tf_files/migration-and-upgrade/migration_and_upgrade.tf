@@ -36,7 +36,7 @@ module "cucumber_testsuite" {
   cc_ptf_username = var.SCC_PTF_USER
   cc_ptf_password = var.SCC_PTF_PASSWORD
 
-  images = ["tumbleweedo", "opensuse160o", "sles15sp6o", "sles15sp7o", "sles160o", "slemicro55o", "slmicro60o", "slmicro61o"]
+  images = ["tumbleweedo", "opensuse160o", "sles15sp6o", "sles15sp7o", "sles160o", "sles161o", "slemicro55o", "slmicro60o", "slmicro61o", "slmicro62o"]
 
   ssh_key_path = var.CONTROLLER_PUBLIC_SSH_KEY_PATH
   use_avahi    = false

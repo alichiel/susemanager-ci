@@ -73,10 +73,8 @@ If you wish to do no OS upgrade, the version FROM and TO must be the same.
             """, choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
                 return [
                     'sles15sp7o',
-                    'slmicro60o',
                     'slmicro61o',
                     'slmicro62o',
-                    'opensuse161o',
                     'sles160o',
                     'sles161o',
                     'tumbleweedo'
