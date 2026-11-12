@@ -4,7 +4,6 @@ variable "CONTAINER_REGISTRY" {
   default = "registry.suse.de"
 }
 
-
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -58,9 +57,9 @@ module "cucumber_testsuite" {
 
   ## Add extra containers
   deploy_tftp              = true
-  deploy_saline            = false
-  deploy_coco_attestation  = false
-  deploy_hub_api           = false
+  deploy_saline            = true
+  deploy_coco_attestation  = true
+  deploy_hub_api           = true
 
   # when changing images, please also keep in mind to adjust the image matrix in the "Used image versions" section of the README.
   host_settings = {
@@ -113,6 +112,15 @@ module "cucumber_testsuite" {
         mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["suse-sshminion"]
         vcpu = 2
         memory = 4096
+      }
+    }
+    dhcp_dns = {
+      name = "dhcp-dns"
+      image = "opensuse160o"
+      hypervisor = {
+        host        = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].hypervisor
+        user        = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].dhcp_user
+        private_key = file(pathexpand(var.HYPERVISOR_PRIVATE_SSH_KEY_PATH))
       }
     }
   }
