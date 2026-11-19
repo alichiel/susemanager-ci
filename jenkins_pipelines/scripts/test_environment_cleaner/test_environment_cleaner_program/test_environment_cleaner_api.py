@@ -8,10 +8,14 @@ logger = logging.getLogger(__name__)
 # Global configuration
 username = "admin"
 password = "admin"
+# Image profile labels created by features/build_validation/retail
+RETAIL_PROFILE_LABELS = ["suse_os_image_15_sp6", "suse_os_image_15_sp7"]
 
 class ResourceManager:
-    def __init__(self, manager_url, resources_to_delete):
+    def __init__(self, manager_url, resources_to_delete, channels_to_delete=()):
         self.resources_to_keep = {"proxy", "monitoring", "build", "terminal"} - set(resources_to_delete)
+        # Exact labels of non-MU child channels created by the BV features (non_MU_channels_tasks_*.json)
+        self.channels_to_delete = set(channels_to_delete)
         self.session_key = None
         self.client = xmlrpc.client.ServerProxy(f"http://{manager_url}/rpc/api")
 
@@ -45,11 +49,6 @@ class ResourceManager:
 
     def delete_software_channels(self):
         """Delete only custom child channels (keeps all parent channels and vendor child channels)."""
-        # Specific child channels to delete by exact label match (use set for O(1) lookup)
-        specific_channels_to_delete = {
-            "ubuntu-2404-noble-amd64"
-        }
-
         # No need to differentiate between versions (MLM 5.1, 5.2 vs Uyuni)
         # Uyuni BV is now gone, and the behavior should be the same across all versions and products
         channels = self.client.channel.listMyChannels(self.session_key)
@@ -66,7 +65,7 @@ class ResourceManager:
             is_candidate = (
                 "custom" in channel_label.lower() or
                 channel.get('name', '').startswith("Custom Channel") or
-                channel_label in specific_channels_to_delete
+                channel_label in self.channels_to_delete
             )
 
             if not is_candidate:
@@ -129,23 +128,25 @@ class ResourceManager:
         self.client.saltkey.delete(self.session_key, system_name)
 
     def delete_image_profiles(self):
+        # Listing fails when a profile's activation key was deleted (bsc#1271012). Delete by label
+        # still works, so fall back to the profile labels the retail features create.
         try:
-            profiles = self.client.image.profile.listImageProfiles(self.session_key)
-        except xmlrpc.client.Fault as e:
-            logger.warning(f"Failed to list image profiles (fault {e.faultCode}): {e.faultString}")
-            return
+            labels = [profile['label'] for profile in self.client.image.profile.listImageProfiles(self.session_key)]
         except Exception:
-            logger.exception("Unexpected error listing image profiles")
-            raise
+            logger.warning("Failed to list image profiles, deleting the known retail profiles by label", exc_info=True)
+            labels = RETAIL_PROFILE_LABELS
 
-        for profile in profiles:
+        for label in labels:
             try:
-                logger.info(f"Delete image profile: {profile['label']}")
-                self.client.image.profile.delete(self.session_key, profile['label'])
+                logger.info(f"Delete image profile: {label}")
+                self.client.image.profile.delete(self.session_key, label)
             except xmlrpc.client.Fault as e:
-                logger.warning(f"Failed to delete profile {profile['label']} (fault {e.faultCode}): {e.faultString}")
-                # Continue with other profiles
-                continue
+                logger.warning(f"Failed to delete profile {label} (fault {e.faultCode}): {e.faultString}")
+
+        # A stale profile breaks the next retail run: the listing must work and be empty now
+        remaining = self.client.image.profile.listImageProfiles(self.session_key)
+        if remaining:
+            raise RuntimeError(f"Image profiles left: {', '.join(p['label'] for p in remaining)}")
 
     def get_product_version(self):
         product_version = self.client.api.systemVersion()
