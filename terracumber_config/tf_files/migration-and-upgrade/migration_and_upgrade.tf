@@ -1,9 +1,3 @@
-variable "CONTAINER_REGISTRY" {
-  type = string
-  description = "Container repository for server and proxy"
-  default = "registry.suse.de"
-}
-
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -112,15 +106,6 @@ module "cucumber_testsuite" {
         mac = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["suse-sshminion"]
         vcpu = 2
         memory = 4096
-      }
-    }
-    dhcp_dns = {
-      name = "dhcp-dns"
-      image = "opensuse160o"
-      hypervisor = {
-        host        = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].hypervisor
-        user        = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].dhcp_user
-        private_key = file(pathexpand(var.HYPERVISOR_PRIVATE_SSH_KEY_PATH))
       }
     }
   }

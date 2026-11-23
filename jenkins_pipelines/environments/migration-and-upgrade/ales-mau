@@ -15,9 +15,11 @@ node('sumaform-cucumber') {
             activeChoice(name: 'cucumber_ref', description: 'Testsuite GIT reference (branch, tag...)', choiceType: 'PT_SINGLE_SELECT', script: [$class: 'GroovyScript', script: [$class: 'SecureGroovyScript', sandbox: true, script: """
                 return [
                     'Manager-5.1',
+                    'Manager-5.1 nightly',
                     'Manager-5.2',
-                    'Uyuni-master',
-                    'Uyuni-released',
+                    'Manager-5.2 nightly',
+                    'Uyuni',
+                    'Uyuni nightly'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'tf_file', defaultValue: 'susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/migration_and_upgrade.tf', description: 'Path to the tf file to be used'),
@@ -53,8 +55,7 @@ If no link to containers provided, the default from distribution will be used (t
                 return [
                     'Multi-Linux Manager 5.1',
                     'Multi-Linux Manager 5.2',
-                    'Uyuni Master',
-                    'Uyuni Released'
+                    'Uyuni'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'mau_container_registry_startpoint', defaultValue: '', description: """
@@ -87,8 +88,7 @@ If no link to containers provided, the default from distribution will be used (t
                 return [
                     'Multi-Linux Manager 5.1',
                     'Multi-Linux Manager 5.2',
-                    'Uyuni Master',
-                    'Uyuni Released'
+                    'Uyuni'
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'mau_container_registry_endpoint', defaultValue: '', description: """
@@ -127,12 +127,19 @@ The tag is shared with server and proxy as well.
             case 'Manager-5.1':
                 mutableParams.product_version = '5.1-released'
                 break
+            case 'Manager-5.1 nightly':
+                mutableParams.product_version = '5.1-nightly'
+                break
             case 'Manager-5.2':
                 mutableParams.product_version = '5.2-released'
                 break
-            case 'Uyuni-master':
+            case 'Manager-5.2 nightly':
+                mutableParams.product_version = '5.2-nightly'
+                break
+            case 'Uyuni nightly':
                 mutableParams.product_version = 'uyuni-master'
                 break
+            case 'Uyuni':
             default:
                 mutableParams.product_version = 'uyuni-released'
         }
