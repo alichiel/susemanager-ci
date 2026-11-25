@@ -36,6 +36,57 @@ def run(params) {
             def base_os = params.base_os ?: ''
             def json_generator_version = params.json_generator_version ?: ''
 
+            // Nightly extras ported from pipeline.groovy: product changes, sanity check, flaky-test tagging,
+            // mirror sync and RRTG ingest. Opt-in: only jobs that set params.nightly get them.
+            def isNightly = params.nightly == true
+            def showProductChanges = isNightly && params.show_product_changes
+            def previous_commit = null
+            def product_commit = null
+            def runtime = env.JOB_BASE_NAME.endsWith('-RKE2') ? 'rke2' : 'podman'
+            def mirror_scope = isNightly ? env.JOB_BASE_NAME.split('-acceptance-tests')[0].replaceAll("-dev", "") : null
+            def ci_label_map = [
+                    '5.1'  : '5.1_ci',
+                    '5.2'  : "5.2_${runtime}_ci",
+                    'Head' : "head_${runtime}_ci",
+                    'uyuni': "uyuni_${runtime}_ci"
+            ]
+            def ci_label = isNightly ? (ci_label_map.find { k, v -> env.JOB_BASE_NAME.contains(k) }?.value ?: '') : ''
+            def rrtg_version = isNightly ? env.JOB_BASE_NAME.find(/5\.1|5\.2|Head/)?.toLowerCase() : null
+            // 5.2 and head are reported per deployment flavour (podman / rke2)
+            if (rrtg_version in ['5.2', 'head']) {
+                rrtg_version += env.JOB_BASE_NAME.endsWith('-RKE2') ? '-rke2' : '-podman'
+            }
+            if (isNightly && !rrtg_version && env.JOB_BASE_NAME == 'uyuni-master-dev-acceptance-tests-podman') {
+                rrtg_version = 'uyuni-podman'
+            }
+            if (showProductChanges) {
+                // Retrieve the hash commit of the last product built in OBS/IBS and previous job
+                def prefix = env.JOB_BASE_NAME.split('-acceptance-tests')[0]
+                if (prefix == "uyuni-master-dev") {
+                    prefix = "manager-Head-dev"
+                }
+                // The 2obs jobs are releng, not dev
+                prefix = prefix.replaceAll("-dev", "-releng")
+                def request = httpRequest ignoreSslErrors: true, url: "https://ci.suse.de/job/${prefix}-2obs/lastBuild/api/json"
+                def requestJson = readJSON text: request.getContent()
+                product_commit = "${requestJson.actions.lastBuiltRevision.SHA1}"
+                product_commit = product_commit.substring(product_commit.indexOf('[') + 1, product_commit.indexOf(']'))
+                print "Current product commit: ${product_commit}"
+                // Walk back past builds without a "[commit]" description (e.g. quiet-window skips)
+                def previousBuild = currentBuild.getPreviousBuild()
+                def hasCommit = { String d -> d != null && d.indexOf('[') >= 0 && d.indexOf(']') > d.indexOf('[') }
+                while (previousBuild != null && !hasCommit(previousBuild.description)) {
+                    previousBuild = previousBuild.getPreviousBuild()
+                }
+                if (previousBuild == null) {
+                    previous_commit = product_commit
+                } else {
+                    def desc = previousBuild.description
+                    previous_commit = desc.substring(desc.indexOf('[') + 1, desc.indexOf(']'))
+                }
+                print "Previous product commit: ${previous_commit}"
+            }
+
             def isNewJenkins = env.JENKINS_URL?.contains('jenkins.mgr.suse.de') || env.JENKINS_URL?.contains('jenkins.mgr.slc1.suse.org')
             def credInit = isNewJenkins
                     ? 'set +x; credFile=$(mktemp); echo "$SECRET_CONTENT" > "${credFile}"; chmod 600 "${credFile}"; . "${credFile}"; rm -f "${credFile}"; set -x'
@@ -71,10 +122,21 @@ def run(params) {
 
             try {
                 stage('Clone terracumber, susemanager-ci') {
+                    if (showProductChanges) {
+                        // Rename build using product commit hash; the next build reads it back as previous_commit
+                        currentBuild.description = product_commit ? "[${product_commit}]" : "[${params.tf_file}]"
+                    }
                     sh "mkdir -p ${resultdir}"
                     git url: params.terracumber_gitrepo, branch: params.terracumber_ref
                     dir("susemanager-ci") {
                         checkout scm
+                    }
+                    // Run minima sync on the mirror of the deployment: LOCATION comes from the deployment tfvars,
+                    // the mirror host from location.tfvars (not from the Jenkins host, which may differ).
+                    if (mirror_scope != null) {
+                        def location = sh(script: "grep -oP '^LOCATION\\s*=\\s*\"\\K[^\"]+' ${params.deployment_tfvars}", returnStdout: true).trim()
+                        def mirror = sh(script: "sed -n '/^  ${location} = {/,/}/p' susemanager-ci/terracumber_config/tf_files/tfvars/location.tfvars | grep -oP 'mirror\\s*=\\s*\"\\K[^\"]+'", returnStdout: true).trim()
+                        sh "ssh root@${mirror} -t \"test -x /usr/local/bin/minima-${mirror_scope}.sh && /usr/local/bin/minima-${mirror_scope}.sh || echo 'no mirror script for this scope'\""
                     }
                 }
 
@@ -106,6 +168,12 @@ def run(params) {
                 stage('Deploy') {
 
                     if (params.must_deploy) {
+                        // Jenkins hands out a "@N" copy of the workspace when the base one is still leased, i.e. the
+                        // previous run is not fully finished. The copy has no Terraform state, so Deploy would plan a
+                        // full create against infrastructure that already exists. Stop before touching libvirt.
+                        if (env.WORKSPACE ==~ /.*@\d+$/) {
+                            error("Workspace ${env.WORKSPACE} is a Jenkins copy (@N): the previous build still holds the base workspace and the Terraform state is not here. Wait for it to finish, then re-run.")
+                        }
                         withCreds {
                             // Clone sumaform
                             sh """
@@ -114,13 +182,6 @@ def run(params) {
                             ${credInit}
                             ./terracumber-cli ${common_params} --gitrepo ${params.sumaform_gitrepo} --gitref ${params.sumaform_ref} --runstep gitsync
                         """
-
-                            // Restore the previous Terraform state (as pipeline-personal.groovy does). Without it a
-                            // build landing on a fresh workspace, e.g. after an aborted run, plans a full create
-                            // against infra that already exists.
-                            if (currentBuild.previousBuild != null && !fileExists("results/sumaform/terraform.tfstate")) {
-                                safe.run('restore-tfstate') { copyArtifacts projectName: currentBuild.projectName, selector: lastWithArtifacts(), optional: true }
-                            }
 
                             // custom_repositories.json from parameter (self-skips when unset)
                             if (params.custom_repositories?.trim()) {
@@ -143,7 +204,7 @@ def run(params) {
                                 unstash 'custom_repos_json'
                             }
 
-                            def locationFile = "susemanager-ci/terracumber_config/tf_files/tfvars/location.tfvars"
+                            def locationFile ="susemanager-ci/terracumber_config/tf_files/tfvars/location.tfvars"
                             def outputFile = "${localSumaformDirPath}terraform.tfvars"
 
                             def s390LocalUser
@@ -213,6 +274,31 @@ def run(params) {
                             --runstep provision
                     """
                             deployed = true
+                            if (isNightly) {
+                                // Collect and tag flaky tests from the GitHub Board (non-fatal)
+                                def rakeTarget = ci_label ? "utils:collect_and_tag_flaky_tests[${ci_label}]" : "utils:collect_and_tag_flaky_tests"
+                                sh script: cucumberCmd(rakeTarget), returnStatus: true
+                            }
+                        }
+                    } else if (isNewJenkins) {
+                        Utils.markStageSkippedForConditional(STAGE_NAME)
+                    }
+                }
+
+                stage('Product changes') {
+                    if (showProductChanges) {
+                        // Comparison between the previous and the current git revision of the spacewalk (or uyuni)
+                        // repository pushed in IBS (or OBS), run on the controller.
+                        sh script: "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/testsuite.log --runstep cucumber --cucumber-cmd 'cd /root/spacewalk/; git --no-pager log --pretty=format:\"%h %<(16,trunc)%cn  %s  %d\" ${previous_commit}..${product_commit}'", returnStatus: true
+                    } else if (isNewJenkins) {
+                        Utils.markStageSkippedForConditional(STAGE_NAME)
+                    }
+                }
+
+                stage('Sanity Check') {
+                    if (isNightly) {
+                        withIdleTimeout {
+                            sh cucumberCmd('cucumber:sanity_check')
                         }
                     } else if (isNewJenkins) {
                         Utils.markStageSkippedForConditional(STAGE_NAME)
@@ -248,17 +334,15 @@ def run(params) {
                         Utils.markStageSkippedForConditional(STAGE_NAME)
                     }
                 }
-                stage('Secondary features') {
-                    if (!runSecondary) {
-                        if (isNewJenkins) {
-                            Utils.markStageSkippedForConditional(STAGE_NAME)
-                        }
-                        return
-                    }
+                stage('Secondary') {
                     def tags_list = ""
-                    if (params.functional_scopes) {
+                    // When triggered by cron the Active Choices plugin (JENKINS-42568) always returns
+                    // the first checkbox value instead of none, so ignore functional_scopes on timer builds.
+                    def isTimerTriggered = currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')
+                    def effectiveScopes = isTimerTriggered ? '' : params.functional_scopes
+                    if (runSecondary && effectiveScopes) {
                         // Re-add the @ prefix stripped from the job parameters, then join as an OR expression.
-                        def transformed_scopes = params.functional_scopes.split(',')
+                        def transformed_scopes = effectiveScopes.split(',')
                                 .collect { it.trim() }
                                 .collect { it.startsWith('@') ? it : "@${it}" }
                                 .join(' or ')
@@ -266,22 +350,51 @@ def run(params) {
                         // so the value carries its own quotes rather than nesting single ones.
                         tags_list = "export TAGS=\"\\\"${transformed_scopes}\\\"\"; "
                     }
-                    def statusCode1 = 1
-                    def statusCode2 = 1
-                    def statusCode3 = 1
-                    withIdleTimeout { statusCode1 = sh(script: cucumberCmd('cucumber:secondary', tags_list), returnStatus: true) }
-                    withIdleTimeout { statusCode2 = sh(script: cucumberCmd("${params.rake_namespace}:secondary_parallelizable", tags_list), returnStatus: true) }
-                    withIdleTimeout { statusCode3 = sh(script: cucumberCmd("${params.rake_namespace}:secondary_finishing", tags_list), returnStatus: true) }
-                    sh "exit \$(( ${statusCode1}|${statusCode2}|${statusCode3} ))"
-                }
-
-                stage('hub_testing') {
-                    if (runHub) {
-                        withIdleTimeout {
-                            sh cucumberCmd('cucumber:hub_server_to_server')
+                    // A failing sub-stage marks itself and the build FAILURE but the next one still runs,
+                    // so a secondary failure no longer skips hub testing or the finalize step.
+                    def runRake = { String task, boolean enabled, String tags = '' ->
+                        if (enabled) {
+                            // catchInterruptions: false so an abort or idle timeout still exits the stage
+                            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE', catchInterruptions: false) {
+                                withIdleTimeout { sh cucumberCmd(task, tags) }
+                            }
+                        } else if (isNewJenkins) {
+                            Utils.markStageSkippedForConditional(STAGE_NAME)
                         }
-                    } else if (isNewJenkins) {
-                        Utils.markStageSkippedForConditional(STAGE_NAME)
+                    }
+                    // One short rake call per family (run_sets/secondary_{seq,par}_<family>.yml), in run order.
+                    // Parallel families run concurrently: each parallel_cucumber uses the Capybara ports
+                    // 8888+offset+N (N < 6), so every family gets its own CAPYBARA_PORT_OFFSET.
+                    def sequentialFamilies = ['server', 'clients', 'onboarding', 'salt', 'actions', 'proxy',
+                                              'misc', 'cobbler', 'shared_state', 'diskcheck']
+                    def parallelFamilies = ['server', 'clients']
+                    stage('Secondary - Sequential') {
+                        sequentialFamilies.each { family ->
+                            stage("Sequential - ${family}") {
+                                runRake("cucumber:secondary_seq_${family}", runSecondary, tags_list)
+                            }
+                        }
+                    }
+                    stage('Secondary - Parallel') {
+                        def branches = [:]
+                        for (int i = 0; i < parallelFamilies.size(); i++) {
+                            def family = parallelFamilies[i]
+                            def portOffset = i * 10
+                            branches["Parallel - ${family}"] = {
+                                stage("Parallel - ${family}") {
+                                    // The offset travels in the rake prefix: the command runs on the controller.
+                                    runRake("${params.rake_namespace ?: 'cucumber'}:secondary_par_${family}", runSecondary,
+                                            "export CAPYBARA_PORT_OFFSET=${portOffset}; ${tags_list}")
+                                }
+                            }
+                        }
+                        parallel branches
+                    }
+                    stage('Hub Testing') {
+                        runRake('cucumber:hub_server_to_server', runHub)
+                    }
+                    stage('Secondary - Finalize') {
+                        runRake("cucumber:secondary_finishing", runSecondary, tags_list)
                     }
                 }
             }
@@ -325,6 +438,23 @@ def run(params) {
                                 sh "./terracumber-cli ${common_params} --logfile ${resultdirbuild}/mail.log --runstep mail"
                             }
                         }) { result_error = 1 }
+
+                        if (rrtg_version) {
+                            safe.run('rrtg-ingest') {
+                                withCreds {
+                                    sh """
+                                  #!/bin/bash
+                                  ${credInit}
+                                  set +x  # credInit re-enables tracing, which would print RRTG_USER:RRTG_PASS below
+                                  curl -sf -k -X POST \\
+                                    "https://su-agent.qe-hub.mgr.suse.de/api/rrtg/ingest/${rrtg_version}?build=${env.BUILD_NUMBER}" \\
+                                    -u "\${RRTG_USER}:\${RRTG_PASS}" \\
+                                    -H "Content-Type: application/json" \\
+                                  || echo "RRTG ingest failed (non-fatal)"
+                                """
+                                }
+                            }
+                        }
                         sh "exit ${result_error}"
                     } finally {
                         // Clean up old results — in finally so it runs even when getresults/mail fail
