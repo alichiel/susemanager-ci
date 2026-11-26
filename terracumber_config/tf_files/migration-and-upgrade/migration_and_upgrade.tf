@@ -57,7 +57,7 @@ module "cucumber_testsuite" {
 
   # when changing images, please also keep in mind to adjust the image matrix in the "Used image versions" section of the README.
   host_settings = {
-    controller = {
+    mau_controller = {
       image = "opensuse160o"
       provider_settings = {
         mac       = var.ENVIRONMENT_CONFIGURATION[var.ENVIRONMENT].mac["controller"]
