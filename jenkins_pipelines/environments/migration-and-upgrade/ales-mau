@@ -23,7 +23,7 @@ node('sumaform-cucumber') {
                 ]
             """.stripIndent()], fallbackScript: [$class: 'SecureGroovyScript', sandbox: true, script: ""]]),
             string(name: 'tf_file', defaultValue: 'susemanager-ci/terracumber_config/tf_files/migration-and-upgrade/migration_and_upgrade.tf', description: 'Path to the tf file to be used'),
-            string(name: 'sumaform_gitrepo', defaultValue: 'https://github.com/uyuni-project/sumaform.git', description: 'Sumaform GIT Repository'),
+            string(name: 'sumaform_gitrepo', defaultValue: 'https://github.com/alichiel/sumaform.git', description: 'Sumaform GIT Repository'),
             string(name: 'sumaform_ref', defaultValue: 'master', description: 'Sumaform GIT reference (branch, tag...)'),
             choice(name: 'sumaform_backend', choices: ['libvirt'], description: 'Sumaform backend to be used (see https://github.com/uyuni-project/sumaform#backend-choice)'),
             choice(name: 'bin_path', choices: ['/usr/bin/tofu', '/usr/bin/terraform'], description: 'Binary path'),
